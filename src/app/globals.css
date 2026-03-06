@@ -1,0 +1,254 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,900;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-sans:     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Modern dark palette */
+  --bg-base:       #0a0a0a;
+  --bg-elevated:   #141414;
+  --bg-raised:     #1c1c1e;
+  --bg-overlay:    #2c2c2e;
+
+  --text-primary:   #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-tertiary:  #6e6e73;
+
+  --border-subtle:  rgba(255,255,255,0.07);
+  --border-default: rgba(255,255,255,0.11);
+  --border-strong:  rgba(255,255,255,0.22);
+
+  --accent:         #3a7bd5;
+  --accent-hover:   #4d8de8;
+  --accent-dim:     rgba(58,123,213,0.15);
+
+  --green:  #30d158;
+  --red:    #ff453a;
+
+  /* Bookshelf-only warm palette — used by bookshelf components */
+  --shelf-wood:      #2a1505;
+  --shelf-amber:     #c8860a;
+  --shelf-parchment: #f5e6c8;
+  --shelf-leather:   #8b4513;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: #0a0a0a;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--bg-overlay); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+::selection { background: rgba(58,123,213,0.35); color: var(--text-primary); }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-playfair);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Inputs & Selects ── */
+.ha-input {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  border-radius: 8px;
+  padding: 0.6rem 0.875rem;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+}
+.ha-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.ha-input::placeholder { color: var(--text-tertiary); }
+/* Force dark background on native select options */
+.ha-input option {
+  background-color: #1c1c1e;
+  color: #f5f5f7;
+}
+
+/* ── Primary button ── */
+.ha-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ha-btn-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 16px rgba(58,123,213,0.35);
+  transform: translateY(-1px);
+}
+.ha-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* ── Ghost button ── */
+.ha-btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.ha-btn-ghost:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-raised);
+}
+
+/* ── Card ── */
+.ha-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 2px 24px rgba(0,0,0,0.45);
+}
+
+
+/* ── Divider ── */
+.ha-divider {
+  border: none;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 1.5rem 0;
+}
+
+/* ── Page transition ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: fadeInUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── Noise overlay ── */
+.noise-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.018;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Badges ── */
+.ha-badge {
+  font-size: 0.65rem;
+  font-family: var(--font-sans);
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.ha-badge-blue {
+  background: rgba(58,123,213,0.15);
+  color: #6fa8f5;
+  border: 1px solid rgba(58,123,213,0.3);
+}
+.ha-badge-green {
+  background: rgba(48,209,88,0.12);
+  color: var(--green);
+  border: 1px solid rgba(48,209,88,0.25);
+}
+.ha-badge-muted {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ─────────────────────────────────────────
+   BOOKSHELF — warm palette fully preserved
+───────────────────────────────────────── */
+.wood-grain {
+  background-color: #2a1505;
+  background-image:
+    repeating-linear-gradient(92deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px),
+    repeating-linear-gradient(178deg, transparent, transparent 8px, rgba(255,255,255,0.015) 8px, rgba(255,255,255,0.015) 9px);
+}
+
+.amber-glow {
+  box-shadow: 0 0 20px rgba(200,134,10,0.4), 0 0 60px rgba(200,134,10,0.1);
+}
+
+/* Book spine 3D hover */
+.book-spine {
+  transform-style: preserve-3d;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.book-spine:hover {
+  transform: translateY(-12px) rotateY(-8deg);
+}
+
+/* Animations used by bookshelf */
+@keyframes flicker {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.85; }
+}
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 6px rgba(200,134,10,0.4); }
+  50% { box-shadow: 0 0 14px rgba(200,134,10,0.8); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ── Chapter row hover (server component safe) ── */
+.chapter-row {
+  background: transparent;
+  border: 1px solid transparent;
+}
+.chapter-row:hover {
+  background: var(--bg-raised);
+  border-color: var(--border-subtle);
+}
+
+/* ── New book slot hover on shelf ── */
+.new-book-slot:hover > div {
+  border-color: rgba(255,255,255,0.3) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: rgba(255,255,255,0.5) !important;
+  transform: translateY(-6px);
+}

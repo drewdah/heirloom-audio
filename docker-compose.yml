@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: heirloom-audio
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: file:/data/db/heirloom.db
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      REDIS_URL: redis://redis:6379
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - ./data/db:/data/db
+      - ./data/uploads:/data/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  whisper-worker:
+    build:
+      context: ./whisper-worker
+      dockerfile: Dockerfile
+    container_name: heirloom-whisper
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      UPLOAD_PATH: /data/uploads
+      WHISPER_MODEL: small
+    volumes:
+      - ./data/uploads:/data/uploads
+      - whisper-models:/root/.cache/huggingface
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+
+  redis:
+    image: redis:7-alpine
+    container_name: heirloom-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis-data:
+  whisper-models:
