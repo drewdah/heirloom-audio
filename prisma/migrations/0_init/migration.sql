@@ -74,6 +74,8 @@ CREATE TABLE "Chapter" (
     "durationSeconds" REAL,
     "audioFileUrl" TEXT,
     "audioDriveId" TEXT,
+    "audioFileName" TEXT,
+    "audioFileSizeBytes" INTEGER,
     "transcription" TEXT,
     "transcriptionStatus" TEXT NOT NULL DEFAULT 'PENDING',
     "recordedAt" DATETIME,

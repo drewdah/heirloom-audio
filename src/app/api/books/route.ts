@@ -32,7 +32,16 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Verify the user actually exists in the DB — JWT can outlive a DB reset
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!user) {
+    return NextResponse.json(
+      { error: "Session is stale. Please sign out and sign in again." },
+      { status: 401 }
+    );
+  }
 
   const body = await req.json();
   const parsed = bookSchema.safeParse(body);

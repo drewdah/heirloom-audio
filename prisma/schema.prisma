@@ -92,6 +92,8 @@ model Chapter {
   durationSeconds      Float?
   audioFileUrl         String?
   audioDriveId         String?
+  audioFileName        String?
+  audioFileSizeBytes   Int?
   transcription        String?
   transcriptionStatus  String   @default("PENDING")
   recordedAt           DateTime?
