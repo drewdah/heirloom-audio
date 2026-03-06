@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, PlusCircle, LogOut, User } from "lucide-react";
+import { PlusCircle, LogOut, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 interface NavbarProps {
@@ -33,12 +33,28 @@ export default function Navbar({ user }: NavbarProps) {
             <div
               className="w-7 h-7 rounded-lg flex items-center justify-center"
               style={{ background: "var(--accent)", boxShadow: "0 0 12px rgba(58,123,213,0.4)" }}>
-              <BookOpen className="w-3.5 h-3.5 text-white" />
+              {/* Vintage ribbon microphone */}
+              <svg width="14" height="16" viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Mic body - rounded rectangle capsule */}
+                <rect x="3.5" y="0.5" width="7" height="9" rx="3.5" fill="white" fillOpacity="0.9" />
+                {/* Horizontal grille lines */}
+                <line x1="3.5" y1="3" x2="10.5" y2="3" stroke="rgba(58,123,213,0.8)" strokeWidth="0.8" />
+                <line x1="3.5" y1="5" x2="10.5" y2="5" stroke="rgba(58,123,213,0.8)" strokeWidth="0.8" />
+                <line x1="3.5" y1="7" x2="10.5" y2="7" stroke="rgba(58,123,213,0.8)" strokeWidth="0.8" />
+                {/* Neck */}
+                <rect x="6" y="9.5" width="2" height="2" fill="white" fillOpacity="0.7" />
+                {/* Base / stand arm */}
+                <path d="M3 11.5 Q7 13.5 11 11.5" stroke="white" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                {/* Stand pole */}
+                <line x1="7" y1="13" x2="7" y2="15.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+                {/* Base foot */}
+                <line x1="4.5" y1="15.5" x2="9.5" y2="15.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
             </div>
             <span
               className="text-base font-semibold tracking-tight hidden sm:block"
               style={{ color: "var(--text-primary)", fontFamily: "var(--font-playfair)" }}>
-              HeirloomAudio
+              Heirloom Audio
             </span>
           </Link>
 

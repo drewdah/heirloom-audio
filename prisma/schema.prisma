@@ -72,6 +72,7 @@ model Book {
   publishYear     Int?
   coverImageUrl   String?
   coverDriveId    String?
+  spineColor      String?
   driveFolderId   String?
   status          String     @default("IN_PROGRESS")
   version         Int        @default(1)

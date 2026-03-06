@@ -74,11 +74,40 @@ export async function DELETE(
 ) {
   const { bookId } = await params;
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const book = await getAuthorizedBook(bookId, session.user.id);
   if (!book) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Optional: delete the book's Drive folder
+  const { searchParams } = new URL(req.url);
+  const deleteDrive = searchParams.get("deleteDrive") === "true";
+
+  if (deleteDrive && book.driveFolderId) {
+    try {
+      const { getDriveClient } = await import("@/lib/google-drive");
+      const drive = await getDriveClient(session.user.id);
+      // Delete only the book's own folder — leaves HeirloomAudio root untouched
+      await drive.files.delete({ fileId: book.driveFolderId });
+    } catch (err) {
+      // Log but don't block — DB cleanup should always succeed
+      console.warn("[book delete] Drive folder deletion failed:", err);
+    }
+  }
+
+  // Delete local cover file if present
+  try {
+    const { unlink } = await import("fs/promises");
+    const { join } = await import("path");
+    const { existsSync } = await import("fs");
+    const coversDir = join(process.cwd(), "public", "covers");
+    for (const ext of ["jpg", "png", "webp"]) {
+      const p = join(coversDir, `${bookId}.${ext}`);
+      if (existsSync(p)) await unlink(p).catch(() => {});
+    }
+  } catch {}
+
+  // Cascade delete handles chapters and exports via Prisma schema
   await prisma.book.delete({ where: { id: bookId } });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ ok: true });
 }

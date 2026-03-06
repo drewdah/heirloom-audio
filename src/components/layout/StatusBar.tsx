@@ -20,51 +20,47 @@ export default async function StatusBar({ userId }: StatusBarProps) {
     <div
       className="fixed bottom-0 left-0 right-0 z-40 border-t"
       style={{
-        background: "rgba(10,10,10,0.9)",
-        borderColor: "rgba(255,255,255,0.07)",
+        background: "rgba(10,10,10,0.92)",
+        borderColor: "rgba(255,255,255,0.08)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
       }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-9 gap-6">
+        <div className="flex items-center justify-between gap-6" style={{ height: "48px" }}>
 
-          <div className="flex items-center gap-5 text-xs" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
-            <span className="flex items-center gap-1.5">
-              <BookOpen className="w-3 h-3" style={{ color: "var(--accent)" }} />
-              <span>{activeBooks} active</span>
+          <div className="flex items-center gap-6" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)", fontSize: "0.875rem" }}>
+            <span className="flex items-center gap-2">
+              <BookOpen style={{ width: "16px", height: "16px", color: "var(--accent)", flexShrink: 0 }} />
+              <span>{activeBooks} active {activeBooks === 1 ? "book" : "books"}</span>
             </span>
-            <span className="hidden sm:flex items-center gap-1.5">
-              <Mic className="w-3 h-3" style={{ color: "var(--accent)" }} />
+            <span className="hidden sm:flex items-center gap-2">
+              <Mic style={{ width: "16px", height: "16px", color: "var(--accent)", flexShrink: 0 }} />
               <span>
                 <span style={{ color: "var(--text-secondary)" }}>{recordedChapters}</span>
                 {" / "}
                 <span style={{ color: "var(--text-secondary)" }}>{totalChapters}</span>
-                {" chapters"}
+                {" chapters recorded"}
               </span>
             </span>
             {totalSeconds > 0 && (
-              <span className="hidden md:flex items-center gap-1.5">
-                <Clock className="w-3 h-3" style={{ color: "var(--accent)" }} />
+              <span className="hidden md:flex items-center gap-2">
+                <Clock style={{ width: "16px", height: "16px", color: "var(--accent)", flexShrink: 0 }} />
                 <span style={{ color: "var(--text-secondary)" }}>{formatDuration(totalSeconds)}</span>
+                <span>total</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {totalChapters > 0 && (
-              <div className="hidden sm:flex items-center gap-2">
-                <div className="h-1 w-28 rounded-full overflow-hidden" style={{ background: "var(--bg-raised)" }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%`, background: "var(--accent)" }}
-                  />
+              <div className="hidden sm:flex items-center gap-3">
+                <div style={{ height: "6px", width: "120px", borderRadius: "3px", overflow: "hidden", background: "var(--bg-raised)" }}>
+                  <div style={{ width: `${pct}%`, height: "100%", background: "var(--accent)", borderRadius: "3px", transition: "width 0.5s ease" }} />
                 </div>
-                <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>{pct}%</span>
+                <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)", fontFamily: "var(--font-sans)", minWidth: "36px" }}>{pct}%</span>
               </div>
             )}
-            <span className="text-xs" style={{ color: "var(--text-tertiary)", opacity: 0.5, fontFamily: "var(--font-sans)" }}>
-              v0.1
-            </span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", opacity: 0.4, fontFamily: "var(--font-sans)" }}>v0.1</span>
           </div>
 
         </div>

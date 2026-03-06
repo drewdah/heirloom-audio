@@ -39,3 +39,8 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# User-uploaded cover images (served locally)
+public/covers/*.jpg
+public/covers/*.png
+public/covers/*.webp

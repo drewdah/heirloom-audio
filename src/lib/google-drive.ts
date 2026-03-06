@@ -97,9 +97,11 @@ export async function ensureBookFolder(userId: string, bookId: string): Promise<
   const rootFolderId = await ensureRootFolder(userId);
   const drive = await getDriveClient(userId);
 
+  // Include short ID in folder name to handle duplicate book titles
+  const shortId = bookId.slice(-6).toUpperCase();
   const res = await drive.files.create({
     requestBody: {
-      name: book.title,
+      name: `${book.title} [${shortId}]`,
       mimeType: "application/vnd.google-apps.folder",
       parents: [rootFolderId],
     },

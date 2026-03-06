@@ -2,10 +2,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Edit, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Plus } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 import ChapterList from "@/components/book/ChapterList";
-import CoverUpload from "@/components/book/CoverUpload";
+import BookCover3D from "@/components/book/BookCover3D";
+import BookActions from "@/components/book/BookActions";
 
 export default async function BookPage({ params }: { params: Promise<{ bookId: string }> }) {
   const { bookId } = await params;
@@ -33,10 +34,14 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
       {/* Book header */}
       <div className="ha-card p-8 mb-6">
         <div className="flex items-start gap-8">
-          {/* Cover */}
-          <CoverUpload bookId={book.id} coverImageUrl={book.coverImageUrl} />
+          <BookCover3D
+            bookId={book.id}
+            title={book.title}
+            author={book.author}
+            coverImageUrl={book.coverImageUrl}
+            spineColor={book.spineColor}
+          />
 
-          {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -53,12 +58,11 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
                   )}
                 </p>
               </div>
-              <Link href={`/books/${book.id}/edit`}
-                className="ha-btn-ghost flex items-center gap-1.5 text-sm flex-shrink-0"
-                style={{ padding: "0.4rem 0.875rem" }}>
-                <Edit className="w-3.5 h-3.5" />
-                Edit
-              </Link>
+              <BookActions
+                bookId={book.id}
+                bookTitle={book.title}
+                hasDriveFolder={!!book.driveFolderId}
+              />
             </div>
 
             <div className="ha-divider" />

@@ -1,187 +1,139 @@
 "use client";
 import Link from "next/link";
 import { type BookWithChapters, getSpineColor } from "@/lib/utils-client";
-import { formatDuration } from "@/lib/utils";
 import { BookOpen } from "lucide-react";
 
-interface BookCoverProps {
+const BOOK_W = 130;
+const BOOK_H = 210;
+const SPINE_W = 36;
+
+interface BookSpineProps {
   book: BookWithChapters;
   index: number;
 }
 
-export default function BookSpine({ book, index }: BookCoverProps) {
-  const colors = getSpineColor(index);
-  const recordedChapters = book.chapters.filter(
-    (c) => c.audioDriveId || c.audioFileUrl
-  ).length;
+export default function BookSpine({ book, index }: BookSpineProps) {
+  const fallback = getSpineColor(index);
+  const colors = (() => {
+    if (!book.spineColor) return fallback;
+    try { return JSON.parse(book.spineColor) as typeof fallback; }
+    catch { return fallback; }
+  })();
+  const recordedChapters = book.chapters.filter(c => c.audioDriveId || c.audioFileUrl).length;
   const totalChapters = book.chapters.length;
   const progress = totalChapters > 0 ? recordedChapters / totalChapters : 0;
-  const totalSeconds = book.chapters.reduce((s, c) => s + (c.durationSeconds ?? 0), 0);
-
-  // Vary heights slightly for realism
-  const heights = [200, 185, 210, 195, 205, 188, 215, 192];
-  const height = heights[index % heights.length];
-  const width = 130;
-  const spineWidth = 14;
 
   return (
-    <Link href={`/books/${book.id}`} className="block group flex-shrink-0" title={book.title}>
+    <Link
+      href={`/books/${book.id}`}
+      data-book-id={book.id}
+      title={book.title}
+      style={{
+        display: "block",
+        flexShrink: 0,
+        position: "relative",
+        zIndex: 1,
+        width: `${BOOK_W + SPINE_W}px`,
+        height: `${BOOK_H}px`,
+        marginRight: "-15px",
+        perspective: "700px",
+        perspectiveOrigin: "50% 100%",
+        cursor: "pointer",
+      }}
+      onMouseEnter={e => {
+        const wrap = e.currentTarget.querySelector<HTMLElement>(".bk-wrap");
+        if (wrap) wrap.style.transform = "rotateY(0deg) translateY(-18px)";
+        e.currentTarget.style.zIndex = "30";
+      }}
+      onMouseLeave={e => {
+        const wrap = e.currentTarget.querySelector<HTMLElement>(".bk-wrap");
+        if (wrap) wrap.style.transform = "rotateY(32deg)";
+        e.currentTarget.style.zIndex = "1";
+      }}
+    >
       <div
-        className="relative cursor-pointer"
+        className="bk-wrap"
         style={{
-          width: `${width + spineWidth}px`,
-          height: `${height}px`,
-          perspective: "800px",
-          perspectiveOrigin: "50% 50%",
+          position: "absolute",
+          inset: 0,
+          transformStyle: "preserve-3d",
+          transform: "rotateY(32deg)",
+          transformOrigin: "center bottom",
+          transition: "transform 0.4s cubic-bezier(0.34, 1.1, 0.64, 1)",
+        }}
+      >
+        {/* SPINE */}
+        <div style={{
+          position: "absolute",
+          top: 0, left: 0,
+          width: `${SPINE_W}px`,
+          height: `${BOOK_H}px`,
+          background: `linear-gradient(to right, ${colors.spine}33, ${colors.spine}cc)`,
+          transform: "rotateY(-90deg)",
+          transformOrigin: "right center",
+          borderRadius: "2px 0 0 2px",
+          overflow: "hidden",
         }}>
-
-        {/* 3D book wrapper */}
-        <div
-          className="absolute inset-0 transition-transform duration-400"
-          style={{
-            transformStyle: "preserve-3d",
-            transform: "rotateY(-18deg)",
-            transition: "transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.transform = "rotateY(-30deg) translateY(-8px)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.transform = "rotateY(-18deg)";
-          }}>
-
-          {/* ── FRONT COVER ── */}
-          <div
-            className="absolute top-0 left-0 overflow-hidden flex flex-col"
-            style={{
-              width: `${width}px`,
-              height: `${height}px`,
-              background: book.coverImageUrl
-                ? "transparent"
-                : `linear-gradient(160deg, ${colors.spine} 0%, ${colors.bg} 100%)`,
-              borderRadius: "2px 4px 4px 2px",
-              boxShadow: "2px 4px 20px rgba(0,0,0,0.6), 1px 0 0 rgba(0,0,0,0.3)",
-              transformOrigin: "left center",
-            }}>
-
-            {book.coverImageUrl ? (
-              /* Real cover art */
-              <img
-                src={book.coverImageUrl}
-                alt={book.title}
-                className="w-full h-full object-cover"
-                style={{ borderRadius: "2px 4px 4px 2px" }}
-              />
-            ) : (
-              /* Generated cover */
-              <>
-                {/* Top color band */}
-                <div className="h-2 w-full" style={{ background: colors.spine, opacity: 0.8 }} />
-
-                {/* Center content */}
-                <div className="flex-1 flex flex-col items-center justify-center p-3 gap-2">
-                  <BookOpen className="w-7 h-7 opacity-30" style={{ color: colors.text }} />
-                  <div className="text-center">
-                    <p
-                      className="font-display leading-tight"
-                      style={{
-                        color: colors.text,
-                        fontSize: book.title.length > 25 ? "0.65rem" : "0.75rem",
-                        textShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 4,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}>
-                      {book.title}
-                    </p>
-                  </div>
-                  <p
-                    className="text-center"
-                    style={{
-                      color: `${colors.text}99`,
-                      fontSize: "0.55rem",
-                      fontFamily: "var(--font-sans)",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}>
-                    {book.author}
-                  </p>
-                </div>
-
-                {/* Bottom color band */}
-                <div className="h-2 w-full" style={{ background: colors.spine, opacity: 0.8 }} />
-              </>
-            )}
-
-            {/* Progress bar at bottom edge */}
-            {totalChapters > 0 && (
-              <div
-                className="absolute bottom-0 left-0 right-0 h-1"
-                style={{ background: "rgba(0,0,0,0.4)" }}>
-                <div
-                  style={{
-                    width: `${progress * 100}%`,
-                    height: "100%",
-                    background: progress === 1 ? "#30d158" : "#3a7bd5",
-                    transition: "width 0.5s ease",
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Hover overlay */}
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              style={{ background: "rgba(0,0,0,0.75)", borderRadius: "2px 4px 4px 2px" }}>
-              <p className="text-xs font-medium" style={{ color: "#f5f5f7", fontFamily: "var(--font-sans)", fontSize: "0.65rem" }}>
-                {recordedChapters}/{totalChapters} chapters
-              </p>
-              {totalSeconds > 0 && (
-                <p style={{ color: "#a1a1a6", fontSize: "0.6rem", fontFamily: "var(--font-sans)" }}>
-                  {formatDuration(totalSeconds)}
-                </p>
-              )}
-              <p style={{ color: "var(--accent)", fontSize: "0.6rem", fontFamily: "var(--font-sans)", marginTop: "4px" }}>
-                Open →
-              </p>
-            </div>
-          </div>
-
-          {/* ── SPINE ── */}
-          <div
-            className="absolute top-0 overflow-hidden"
-            style={{
-              left: `${width}px`,
-              width: `${spineWidth}px`,
-              height: `${height}px`,
-              background: `linear-gradient(to right, ${colors.spine}dd, ${colors.spine}88)`,
-              transform: `rotateY(90deg)`,
-              transformOrigin: "left center",
-              borderRadius: "0 2px 2px 0",
-              boxShadow: "inset -2px 0 4px rgba(0,0,0,0.3)",
-            }}>
-            {/* Spine highlight */}
-            <div
-              className="absolute left-0 top-0 bottom-0 w-px"
-              style={{ background: "rgba(255,255,255,0.15)" }}
-            />
-          </div>
-
+          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.15)" }} />
+          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "8px", background: "linear-gradient(to right,rgba(0,0,0,0.5),transparent)" }} />
         </div>
 
-        {/* Shadow on shelf */}
-        <div
-          className="absolute bottom-0 left-0 right-0 -z-10"
-          style={{
-            height: "12px",
-            background: "radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.5) 0%, transparent 70%)",
-            transform: "translateY(8px) scaleY(0.5)",
-            filter: "blur(4px)",
-          }}
-        />
+        {/* FRONT COVER */}
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: `${SPINE_W}px`,
+          width: `${BOOK_W}px`,
+          height: `${BOOK_H}px`,
+          borderRadius: "0 3px 3px 0",
+          overflow: "hidden",
+          background: book.coverImageUrl
+            ? "#000"
+            : `linear-gradient(150deg, ${colors.spine}cc 0%, ${colors.bg} 55%, ${colors.spine}44 100%)`,
+          boxShadow: "4px 8px 28px rgba(0,0,0,0.7), inset -1px 0 0 rgba(255,255,255,0.04)",
+          display: "flex",
+          flexDirection: "column",
+        }}>
+          {book.coverImageUrl ? (
+            <img src={book.coverImageUrl} alt={book.title}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          ) : (
+            <>
+              <div style={{ height: "3px", background: colors.spine, flexShrink: 0 }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "12px", gap: "8px" }}>
+                <BookOpen style={{ width: "28px", height: "28px", opacity: 0.18, color: colors.text }} />
+                <p style={{
+                  color: colors.text,
+                  fontSize: book.title.length > 20 ? "0.65rem" : "0.75rem",
+                  fontFamily: "var(--font-display)",
+                  textAlign: "center",
+                  lineHeight: 1.3,
+                  textShadow: "0 1px 4px rgba(0,0,0,0.6)",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 5,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}>{book.title}</p>
+                <p style={{
+                  color: `${colors.text}77`,
+                  fontSize: "0.55rem",
+                  fontFamily: "var(--font-sans)",
+                  textAlign: "center",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}>{book.author}</p>
+              </div>
+              <div style={{ height: "3px", background: colors.spine, flexShrink: 0 }} />
+            </>
+          )}
+          {totalChapters > 0 && (
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "rgba(0,0,0,0.5)" }}>
+              <div style={{ width: `${progress * 100}%`, height: "100%", background: progress === 1 ? "#30d158" : "#3a7bd5", transition: "width 0.5s" }} />
+            </div>
+          )}
+        </div>
       </div>
     </Link>
   );

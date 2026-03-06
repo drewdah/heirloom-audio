@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, ImageIcon, Camera } from "lucide-react";
 
 interface BookFormProps {
   initialData?: {
@@ -16,6 +16,7 @@ interface BookFormProps {
     isbn?: string;
     publisher?: string;
     publishYear?: number;
+    coverImageUrl?: string;
   };
   mode?: "create" | "edit";
 }
@@ -38,6 +39,9 @@ export function BookForm({ initialData, mode = "create" }: BookFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(initialData?.coverImageUrl ?? null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     title:       initialData?.title       ?? "",
@@ -56,6 +60,15 @@ export function BookForm({ initialData, mode = "create" }: BookFormProps) {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [field]: e.target.value }));
 
+  const handleCoverSelect = (file: File) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) { setError("Cover must be JPEG, PNG, or WebP"); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("Cover must be under 10MB"); return; }
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -71,11 +84,24 @@ export function BookForm({ initialData, mode = "create" }: BookFormProps) {
         publisher:   form.publisher   || undefined,
         publishYear: form.publishYear ? parseInt(form.publishYear) : undefined,
       };
+
       const url    = mode === "edit" && initialData?.id ? `/api/books/${initialData.id}` : "/api/books";
       const method = mode === "edit" ? "PUT" : "POST";
       const res    = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error?.message ?? "Error"); }
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error saving book"); }
       const book = await res.json();
+
+      // Upload cover if one was selected
+      if (coverFile) {
+        const fd = new FormData();
+        fd.append("cover", coverFile);
+        const coverRes = await fetch(`/api/books/${book.id}/cover`, { method: "POST", body: fd });
+        if (!coverRes.ok) {
+          // Non-fatal — book was saved, just warn about cover
+          console.warn("Cover upload failed");
+        }
+      }
+
       router.push(`/books/${book.id}`);
       router.refresh();
     } catch (err) {
@@ -116,38 +142,76 @@ export function BookForm({ initialData, mode = "create" }: BookFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
 
-      {/* Core details */}
+      {/* Cover + Core details side by side */}
       <div style={sectionStyle}>
         <p style={sectionTitleStyle}>Book Details</p>
-        <div className="space-y-4">
-          <div>
-            <label style={labelStyle}>Title *</label>
-            <input type="text" required value={form.title} onChange={set("title")}
-              placeholder="e.g. The Holy Bible — King James Version" className="ha-input" />
+        <div className="flex gap-6">
+
+          {/* Cover picker */}
+          <div className="flex-shrink-0">
+            <label style={{ ...labelStyle, marginBottom: "0.5rem" }}>Cover Image</label>
+            <div
+              className="relative group cursor-pointer rounded-xl overflow-hidden"
+              style={{ width: "120px", height: "120px" }}
+              onClick={() => coverInputRef.current?.click()}>
+              {coverPreview ? (
+                <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2"
+                  style={{ background: "var(--bg-overlay)", border: "1px solid var(--border-default)", borderRadius: "0.75rem" }}>
+                  <ImageIcon className="w-7 h-7" style={{ color: "var(--text-tertiary)" }} />
+                  <span className="text-xs text-center leading-tight px-2"
+                    style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
+                    Add Cover
+                  </span>
+                </div>
+              )}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                style={{ background: "rgba(0,0,0,0.7)", borderRadius: "0.75rem" }}>
+                <Camera className="w-5 h-5 text-white" />
+                <span className="text-xs text-white">{coverPreview ? "Change" : "Upload"}</span>
+              </div>
+            </div>
+            <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverSelect(f); }} />
+            <p className="text-xs mt-1.5 text-center" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
+              JPEG · PNG · WebP
+            </p>
           </div>
-          <div>
-            <label style={labelStyle}>Subtitle</label>
-            <input type="text" value={form.subtitle} onChange={set("subtitle")}
-              placeholder="e.g. A Complete Reading" className="ha-input" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+
+          {/* Title / subtitle / author */}
+          <div className="flex-1 space-y-4 min-w-0">
             <div>
-              <label style={labelStyle}>Author *</label>
-              <input type="text" required value={form.author} onChange={set("author")}
-                placeholder="e.g. Anonymous" className="ha-input" />
+              <label style={labelStyle}>Title *</label>
+              <input type="text" required value={form.title} onChange={set("title")}
+                placeholder="e.g. The Holy Bible — King James Version" className="ha-input" />
             </div>
             <div>
-              <label style={labelStyle}>Narrator</label>
-              <input type="text" value={form.narrator} onChange={set("narrator")}
-                placeholder="e.g. John Smith" className="ha-input" />
+              <label style={labelStyle}>Subtitle</label>
+              <input type="text" value={form.subtitle} onChange={set("subtitle")}
+                placeholder="e.g. A Complete Family Recording" className="ha-input" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label style={labelStyle}>Author *</label>
+                <input type="text" required value={form.author} onChange={set("author")}
+                  placeholder="e.g. Anonymous" className="ha-input" />
+              </div>
+              <div>
+                <label style={labelStyle}>Narrator</label>
+                <input type="text" value={form.narrator} onChange={set("narrator")}
+                  placeholder="e.g. John Smith" className="ha-input" />
+              </div>
             </div>
           </div>
-          <div>
-            <label style={labelStyle}>Description</label>
-            <textarea value={form.description} onChange={set("description")} rows={3}
-              placeholder="A complete family recording of…"
-              className="ha-input" style={{ resize: "none" }} />
-          </div>
+        </div>
+
+        <div className="mt-4">
+          <label style={labelStyle}>Description</label>
+          <textarea value={form.description} onChange={set("description")} rows={3}
+            placeholder="A complete family recording of…"
+            className="ha-input" style={{ resize: "none" }} />
         </div>
       </div>
 

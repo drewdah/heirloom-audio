@@ -12,7 +12,7 @@ export default async function ShelfPage() {
   const books = await prisma.book.findMany({
     where: { userId, status: { not: "ARCHIVED" } },
     include: { chapters: true },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { createdAt: "asc" },
   });
 
   const firstName = session!.user.name?.split(" ")[0] ?? "there";
