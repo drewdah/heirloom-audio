@@ -34,17 +34,17 @@ type BookWithChapters = Book & { chapters: Chapter[] };
 interface BookshelfProps { books: BookWithChapters[]; }
 
 const SHELF_CAPACITY = 6;
-const BOOK_W = 130;
-const BOOK_H = 210;
-const SPINE_W = 36;
+const BOOK_W = 148;
+const BOOK_H = 195;
+const SPINE_W = 37;
 const OVERLAP = 15;           // matches BookSpine marginRight: -15px
 const ADD_BOOK_GAP = 10;      // left margin on Add Book slot
 const ROW_PAD_LEFT = 24;      // paddingLeft on books row
 const ROW_PAD_RIGHT = 16;     // paddingRight on books row
-const ADD_BOOK_FOOTPRINT = 72 + ADD_BOOK_GAP + 8;   // capacity calc uses narrower value; visual width is set separately
+const ADD_BOOK_FOOTPRINT = 110 + ADD_BOOK_GAP + 8;   // capacity calc uses narrower value; visual width is set separately
 
 // Books poke above the backing by this amount — backing is shorter than books
-const PEEK_ABOVE = Math.round(BOOK_H * 0.10);  // ~21px above backing top
+const PEEK_ABOVE = Math.round(BOOK_H * 0.13);  // books peek above backing
 
 export default function Bookshelf({ books }: BookshelfProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,7 +114,7 @@ function ShelfRow({ books, globalOffset, isLastRow, hasSpace }: {
   return (
     <div style={{ position: "relative" }}>
       {/* Wrapper with padding-top so books can peek above the backing */}
-      <div style={{ position: "relative", paddingTop: `${PEEK_ABOVE + 18}px` }}>
+      <div style={{ position: "relative", paddingTop: `${PEEK_ABOVE + 28}px` }}>
 
         {/* Wood backing — shorter than books, sits behind them */}
         <div style={{
@@ -181,8 +181,8 @@ function ShelfRow({ books, globalOffset, isLastRow, hasSpace }: {
                 flexShrink: 0,
                 position: "relative",
                 zIndex: 1,
-                width: "115px",  // visual width only — capacity calc uses ADD_BOOK_FOOTPRINT
-                height: "175px",
+                width: "128px",  // visual width only — capacity calc uses ADD_BOOK_FOOTPRINT
+                height: "163px",
                 marginLeft: `${ADD_BOOK_GAP}px`,
                 marginRight: "8px",
                 marginBottom: "7px",

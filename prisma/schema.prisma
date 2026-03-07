@@ -98,6 +98,8 @@ model Chapter {
   audioFileSizeBytes   Int?
   transcription        String?
   transcriptionStatus  String   @default("PENDING")
+  processStatus        String   @default("idle") // idle | processing | done | error
+  processedAt          DateTime?
   recordedAt           DateTime?
   recordingComplete    Boolean  @default(false)
   createdAt            DateTime @default(now())
@@ -121,6 +123,7 @@ model Take {
   fileOffset        Float?    @default(0) // seconds into the audio file where playback starts (left trim)
   transcript        String?   // whisper transcription text
   transcriptStatus  String    @default("pending") // pending | processing | done | error
+  processedFileUrl  String?   // local path to FFmpeg-processed audio
   isActive          Boolean   @default(true)
   recordedAt      DateTime  @default(now())
   createdAt       DateTime  @default(now())

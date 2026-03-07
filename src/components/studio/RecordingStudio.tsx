@@ -1,8 +1,8 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Circle } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, CheckCircle2, Circle, Loader2, Lock } from "lucide-react";
 import ChapterTimeline from "@/components/studio/ChapterTimeline";
 import type { Book, Chapter, Take } from "@prisma/client";
 import { formatDuration } from "@/lib/utils";
@@ -21,6 +21,10 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
   const [chapter, setChapter] = useState(initialChapter);
   const [isPending, startTransition] = useTransition();
   const [completingToggle, setCompletingToggle] = useState(false);
+  const [processStatus, setProcessStatus] = useState<"idle" | "processing" | "done" | "error">(
+    (initialChapter as any).processStatus ?? "idle"
+  );
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const book = chapter.book;
   const sortedChapters = [...book.chapters].sort((a, b) => a.order - b.order);
@@ -29,23 +33,65 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
   const nextChapter = currentIdx < sortedChapters.length - 1 ? sortedChapters[currentIdx + 1] : null;
   const hasAudio = chapter.takes.length > 0 || !!(chapter.audioDriveId || chapter.audioFileUrl);
 
+  // If we load with processStatus=processing (e.g. page refresh mid-process), resume polling
+  useEffect(() => {
+    if (processStatus === "processing") startPolling();
+    return () => { if (pollTimerRef.current) clearInterval(pollTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function startPolling() {
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chapters/${chapter.id}/process`);
+        if (!res.ok) return;
+        const { chapter: updated } = await res.json();
+        if (updated.processStatus === "done" || updated.processStatus === "error") {
+          setProcessStatus(updated.processStatus);
+          clearInterval(timer);
+          pollTimerRef.current = null;
+          startTransition(() => router.refresh());
+        }
+      } catch { /* ignore */ }
+    }, 3000);
+    pollTimerRef.current = timer;
+  }
+
   const toggleComplete = async () => {
     setCompletingToggle(true);
     try {
+      const newComplete = !chapter.recordingComplete;
       const res = await fetch(`/api/chapters/${chapter.id}/complete`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ complete: !chapter.recordingComplete }),
+        body: JSON.stringify({ complete: newComplete }),
       });
       if (res.ok) {
         const { chapter: updated } = await res.json();
         setChapter((c) => ({ ...c, recordingComplete: updated.recordingComplete }));
+
+        if (newComplete) {
+          // Just marked complete — start processing
+          setProcessStatus("processing");
+          startPolling();
+        } else {
+          // Unmarked — reset
+          setProcessStatus("idle");
+          if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+        }
         startTransition(() => router.refresh());
       }
     } finally {
       setCompletingToggle(false);
     }
   };
+
+  const isLocked = chapter.recordingComplete;
+  const isProcessing = processStatus === "processing";
 
   // Build initial clips from takes (sorted by regionStart)
   const initialClips = chapter.takes
@@ -62,6 +108,7 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
       fileSizeBytes: t.fileSizeBytes ?? null,
       transcript: (t as any).transcript ?? null,
       transcriptStatus: (t as any).transcriptStatus ?? "pending",
+      processedFileUrl: (t as any).processedFileUrl ?? null,
       recordedAt: t.recordedAt.toString(),
       isActive: t.isActive,
     }))
@@ -117,8 +164,13 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
             </div>
             {chapter.recordingComplete && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "var(--green)" }} />
-                <span className="text-xs hidden sm:inline" style={{ color: "var(--green)" }}>Complete</span>
+                {isProcessing
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: "var(--accent)" }} />
+                  : <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "var(--green)" }} />}
+                <span className="text-xs hidden sm:inline"
+                  style={{ color: isProcessing ? "var(--accent)" : "var(--green)" }}>
+                  {isProcessing ? "Processing…" : "Complete"}
+                </span>
               </div>
             )}
           </div>
@@ -154,26 +206,50 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
           {hasAudio && (
             <button
               onClick={toggleComplete}
-              disabled={completingToggle}
+              disabled={completingToggle || isProcessing}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-shrink-0 disabled:opacity-50"
+              title={isLocked ? "Unmark to re-enable recording" : "Mark complete and process audio"}
               style={{
-                background: chapter.recordingComplete ? "rgba(48,209,88,0.15)" : "var(--bg-raised)",
-                border: `1px solid ${chapter.recordingComplete ? "rgba(48,209,88,0.4)" : "var(--border-default)"}`,
-                color: chapter.recordingComplete ? "var(--green)" : "var(--text-secondary)",
+                background: isLocked ? "rgba(48,209,88,0.15)" : "var(--bg-raised)",
+                border: `1px solid ${isLocked ? "rgba(48,209,88,0.4)" : "var(--border-default)"}`,
+                color: isLocked ? "var(--green)" : "var(--text-secondary)",
                 fontFamily: "var(--font-sans)",
               }}>
-              {chapter.recordingComplete
+              {completingToggle || isProcessing
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : isLocked
                 ? <CheckCircle2 className="w-4 h-4" />
                 : <Circle className="w-4 h-4" />}
-              {chapter.recordingComplete ? "Marked Complete" : "Mark as Complete"}
+              {isProcessing ? "Processing…"
+                : isLocked ? "Complete"
+                : "Mark as Complete"}
             </button>
           )}
         </div>
 
-        {/* ── Timeline ── */}
+        {/* ── Locked banner ── */}
+        {isLocked && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg"
+            style={{
+              background: "rgba(48,209,88,0.05)",
+              border: "1px solid rgba(48,209,88,0.15)",
+            }}>
+            <Lock className="w-4 h-4 flex-shrink-0" style={{ color: "rgba(48,209,88,0.6)" }} />
+            <p className="text-sm flex-1" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
+              {isProcessing
+                ? "Audio is being processed — EQ, compression, noise reduction and de-essing are being applied."
+                : processStatus === "done"
+                ? "Audio has been processed. Click \"Complete\" to re-open this chapter for editing."
+                : "This chapter is marked complete. Click \"Complete\" to re-open it for editing."}
+            </p>
+          </div>
+        )}
+
+        {/* ── Timeline (locked when complete) ── */}
         <ChapterTimeline
           chapterId={chapter.id}
           initialClips={initialClips}
+          locked={isLocked}
         />
 
       </div>

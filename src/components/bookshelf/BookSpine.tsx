@@ -3,9 +3,9 @@ import Link from "next/link";
 import { type BookWithChapters, getSpineColor } from "@/lib/utils-client";
 import { BookOpen } from "lucide-react";
 
-const BOOK_W = 130;
-const BOOK_H = 210;
-const SPINE_W = 36;
+const BOOK_W = 148;
+const BOOK_H = 195;
+const SPINE_W = 37;
 
 interface BookSpineProps {
   book: BookWithChapters;

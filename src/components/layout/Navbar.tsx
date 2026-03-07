@@ -1,8 +1,10 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PlusCircle, LogOut, User } from "lucide-react";
+import { PlusCircle, LogOut, User, SlidersHorizontal } from "lucide-react";
 import { signOut } from "next-auth/react";
+import AudioSettingsModal from "@/components/studio/AudioSettingsModal";
 
 interface NavbarProps {
   user: {
@@ -15,8 +17,10 @@ interface NavbarProps {
 
 export default function Navbar({ user }: NavbarProps) {
   const pathname = usePathname();
+  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
 
   return (
+    <>
     <nav
       className="sticky top-0 z-50 border-b"
       style={{
@@ -101,6 +105,13 @@ export default function Navbar({ user }: NavbarProps) {
               </span>
             </div>
             <button
+              onClick={() => setAudioSettingsOpen(true)}
+              className="p-2 rounded-lg transition-all"
+              style={{ color: "var(--text-tertiary)" }}
+              title="Audio settings">
+              <SlidersHorizontal className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => signOut({ callbackUrl: "/auth/signin" })}
               className="p-2 rounded-lg transition-all"
               style={{ color: "var(--text-tertiary)" }}
@@ -112,5 +123,7 @@ export default function Navbar({ user }: NavbarProps) {
         </div>
       </div>
     </nav>
+    <AudioSettingsModal open={audioSettingsOpen} onClose={() => setAudioSettingsOpen(false)} />
+    </>
   );
 }

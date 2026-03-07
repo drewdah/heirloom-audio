@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Play, Pause, RotateCcw, Mic, Square, Loader2, X, ZoomIn, ZoomOut,
 } from "lucide-react";
-import { formatDuration } from "@/lib/utils";
+import { formatDuration, formatTimecode } from "@/lib/utils";
 import VUMeter from "@/components/studio/VUMeter";
 import ClipList from "@/components/studio/ClipList";
 
@@ -23,6 +23,7 @@ interface Clip {
   fileSizeBytes: number | null;
   transcript: string | null;
   transcriptStatus: string;  // pending | processing | done | error
+  processedFileUrl: string | null;  // local path to FFmpeg-processed audio (null until processed)
   recordedAt: string;
   isActive: boolean;
 }
@@ -30,6 +31,7 @@ interface Clip {
 interface ChapterTimelineProps {
   chapterId: string;
   initialClips?: Clip[];
+  locked?: boolean;  // true when chapter is marked complete — disables recording/editing
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,19 +61,21 @@ const FUTURE_PAD_SECS = 30;    // empty space after last clip
 export default function ChapterTimeline({
   chapterId,
   initialClips = [],
+  locked = false,
 }: ChapterTimelineProps) {
   // ── State ──────────────────────────────────────────────────────────────
   const [clips, setClips] = useState<Clip[]>(
     // Sort by start time; ensure regionStart is always a number
     initialClips
       .map(c => ({
-        ...c,
-        regionStart: c.regionStart ?? 0,
-        regionEnd: c.regionEnd ?? (c.regionStart ?? 0) + (c.durationSeconds ?? 0),
-        fileOffset: (c as any).fileOffset ?? 0,
-        fileSizeBytes: (c as any).fileSizeBytes ?? null,
-        transcript: (c as any).transcript ?? null,
-        transcriptStatus: (c as any).transcriptStatus ?? "pending",
+      ...c,
+      regionStart: c.regionStart ?? 0,
+      regionEnd: c.regionEnd ?? (c.regionStart ?? 0) + (c.durationSeconds ?? 0),
+      fileOffset: (c as any).fileOffset ?? 0,
+      fileSizeBytes: (c as any).fileSizeBytes ?? null,
+      transcript: (c as any).transcript ?? null,
+      transcriptStatus: (c as any).transcriptStatus ?? "pending",
+        processedFileUrl: (c as any).processedFileUrl ?? null,
       }))
       .sort((a, b) => a.regionStart - b.regionStart)
   );
@@ -85,6 +89,10 @@ export default function ChapterTimeline({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [recError, setRecError] = useState<string | null>(null);
   const [liveEndSec, setLiveEndSec] = useState<number | null>(null); // right edge of clip being recorded
+  const [micGain, setMicGain] = useState<number>(() => {
+    if (typeof window === "undefined") return 1.0;
+    return parseFloat(localStorage.getItem("heirloom-mic-gain") ?? "1.0");
+  });
 
   // ── Refs ───────────────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -97,6 +105,8 @@ export default function ChapterTimeline({
   const playheadRef = useRef<number>(0);
   const pxPerSecRef = useRef(pxPerSec);
   useEffect(() => { pxPerSecRef.current = pxPerSec; }, [pxPerSec]);
+  const gainNodeRef = useRef<GainNode | null>(null); // live mic gain during recording
+  const gainAnalyserRef = useRef<AnalyserNode | null>(null); // tapped after gain node for inline meter
 
   // Audio nodes for multi-clip playback
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -184,12 +194,31 @@ export default function ChapterTimeline({
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus" : "audio/webm";
 
-      const recorder = new MediaRecorder(mediaStream, { mimeType });
+      // Route through a GainNode so micGain slider applies to recorded audio
+      const recCtx = new AudioContext({ sampleRate: 48000 });
+      const source = recCtx.createMediaStreamSource(mediaStream);
+      const gainNode = recCtx.createGain();
+      gainNode.gain.value = micGain;
+      gainNodeRef.current = gainNode;
+      const analyser = recCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.5;
+      gainAnalyserRef.current = analyser;
+      const dest = recCtx.createMediaStreamDestination();
+      source.connect(gainNode);
+      gainNode.connect(analyser); // tap post-gain for meter
+      gainNode.connect(dest);
+      const processedStream = dest.stream;
+
+      const recorder = new MediaRecorder(processedStream, { mimeType });
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
 
       recorder.onstop = async () => {
         mediaStream.getTracks().forEach(t => t.stop());
+        gainNodeRef.current = null;
+        gainAnalyserRef.current = null;
+        recCtx.close();
         setStream(null);
         setLiveEndSec(null);
         if (timerRef.current) clearInterval(timerRef.current);
@@ -247,9 +276,9 @@ export default function ChapterTimeline({
 
       timerRef.current = setInterval(() => {
         const secs = (Date.now() - startTimeRef.current) / 1000;
-        setElapsed(Math.floor(secs));
+        setElapsed(secs); // fractional — display handles rounding
         setLiveEndSec((pendingStartRef.current ?? 0) + secs);
-      }, 80);
+      }, 50);
     } catch {
       setRecError("Microphone access denied.");
     }
@@ -284,7 +313,9 @@ export default function ChapterTimeline({
 
     await Promise.all(relevant.map(async (clip) => {
       try {
-        const buf = await fetch(clip.audioFileUrl!).then(r => r.arrayBuffer());
+        // Prefer processed audio if available (post-EQ/compression/noise reduction)
+        const playUrl = clip.processedFileUrl ?? clip.audioFileUrl!;
+        const buf = await fetch(playUrl).then(r => r.arrayBuffer());
         const decoded = await ctx.decodeAudioData(buf);
         const src = ctx.createBufferSource();
         src.buffer = decoded;
@@ -436,6 +467,24 @@ export default function ChapterTimeline({
     return true;
   }, [clips, chapterId]);
 
+  // ── Mic gain ───────────────────────────────────────────────────────────
+  function handleGainChange(val: number) {
+    setMicGain(val);
+    localStorage.setItem("heirloom-mic-gain", String(val));
+    if (gainNodeRef.current) gainNodeRef.current.gain.value = val; // live update
+  }
+
+  // Listen for gain changes dispatched by the AudioSettings modal
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const val = (e as CustomEvent<number>).detail;
+      setMicGain(val);
+      if (gainNodeRef.current) gainNodeRef.current.gain.value = val;
+    };
+    window.addEventListener("heirloom:mic-gain", handler);
+    return () => window.removeEventListener("heirloom:mic-gain", handler);
+  }, []);
+
   // ── Zoom ───────────────────────────────────────────────────────────────
   function zoom(delta: number) {
     setPxPerSec(prev => Math.max(MIN_PX_PER_SEC, Math.min(MAX_PX_PER_SEC, prev * delta)));
@@ -472,56 +521,100 @@ export default function ChapterTimeline({
       style={{ background: "#0c0c0e", border: "1px solid var(--border-subtle)" }}>
 
       {/* ── Transport bar ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b flex-shrink-0"
-        style={{ borderColor: "var(--border-subtle)", background: "#0a0a0c" }}>
+      {(() => {
+        const isProcessed = locked && clips.length > 0 && clips.every(c => c.processedFileUrl);
+        const isActive = isPlaying || recState === "recording";
+        const playBtnColor = isProcessed ? "#30d158" : "var(--accent)";
+        const playBtnShadow = isProcessed
+          ? "0 2px 10px rgba(48,209,88,0.5)"
+          : "0 2px 10px rgba(58,123,213,0.5)";
+        return (
+          <div className="flex items-center gap-3 px-4 border-b flex-shrink-0 relative"
+            style={{ borderColor: "var(--border-subtle)", background: "#0a0a0c", minHeight: 60 }}>
 
-        {/* Playhead time */}
-        <span className="font-mono text-sm tabular-nums w-20 flex-shrink-0"
-          style={{ color: "var(--text-primary)" }}>
-          {formatDuration(Math.floor(playheadSec))}
-          <span style={{ color: "var(--text-tertiary)" }}> / {formatDuration(Math.floor(totalRecordedEnd))}</span>
-        </span>
+            {/* Left: play controls */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Play/Pause */}
+              <button
+                onClick={togglePlayback}
+                disabled={clips.length === 0}
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-30 transition-all"
+                title={isProcessed ? "Playing processed audio" : "Play"}
+                style={{ background: playBtnColor, boxShadow: clips.length > 0 ? playBtnShadow : "none", transition: "background 0.3s, box-shadow 0.3s" }}>
+                {isPlaying
+                  ? <Pause className="w-4 h-4 text-white fill-white" />
+                  : <Play className="w-4 h-4 text-white fill-white" style={{ marginLeft: "2px" }} />}
+              </button>
 
-        {/* Play/Pause */}
-        <button
-          onClick={togglePlayback}
-          disabled={clips.length === 0}
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-30 transition-all"
-          style={{ background: "var(--accent)", boxShadow: clips.length > 0 ? "0 2px 10px rgba(58,123,213,0.5)" : "none" }}>
-          {isPlaying
-            ? <Pause className="w-4 h-4 text-white fill-white" />
-            : <Play className="w-4 h-4 text-white fill-white" style={{ marginLeft: "2px" }} />}
-        </button>
+              {/* Return to start */}
+              <button
+                onClick={() => { stopPlayback(); setPlayheadSec(0); playheadRef.current = 0; }}
+                className="p-1.5 rounded transition-colors"
+                style={{ color: "var(--text-tertiary)" }} title="Return to start">
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </div>
 
-        {/* Return to start */}
-        <button
-          onClick={() => { stopPlayback(); setPlayheadSec(0); playheadRef.current = 0; }}
-          className="p-1.5 rounded transition-colors"
-          style={{ color: "var(--text-tertiary)" }} title="Return to start">
-          <RotateCcw className="w-3.5 h-3.5" />
-        </button>
+            {/* Centre: large time display — prominent during playback or recording */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none">
+              <div className="flex items-baseline gap-0 font-mono tabular-nums leading-none"
+                style={{
+                  color: recState === "recording"
+                    ? "#dc2626"
+                    : isPlaying
+                    ? "var(--text-primary)"
+                    : "var(--text-secondary)",
+                  transition: "color 0.2s",
+                }}>
+                {/* Main timecode — MM:SS */}
+                <span style={{ fontSize: "1.65rem", fontWeight: 600, letterSpacing: "-0.03em" }}>
+                  {recState === "recording"
+                    ? formatTimecode(elapsed).split(".")[0]
+                    : formatTimecode(playheadSec).split(".")[0]}
+                </span>
+                {/* Centiseconds — smaller, dimmer */}
+                <span style={{ fontSize: "1rem", fontWeight: 400, opacity: 0.55, letterSpacing: "-0.01em" }}>
+                  .{recState === "recording"
+                    ? formatTimecode(elapsed).split(".")[1]
+                    : formatTimecode(playheadSec).split(".")[1]}
+                </span>
+                {/* Total duration */}
+                <span style={{ fontSize: "0.75rem", fontWeight: 400, color: "var(--text-tertiary)", marginLeft: "0.4em" }}>
+                  / {formatTimecode(totalRecordedEnd).split(".")[0]}
+                </span>
+              </div>
+              {isProcessed && !isActive && (
+                <span className="text-xs mt-0.5" style={{ color: "#30d158", fontFamily: "var(--font-sans)", fontSize: "0.6rem", letterSpacing: "0.05em" }}>
+                  ✦ processed
+                </span>
+              )}
+            </div>
 
-        <div className="flex-1" />
+            <div className="flex-1" />
 
-        {/* Zoom controls */}
-        <button onClick={() => zoom(0.7)} className="p-1.5 rounded" style={{ color: "var(--text-tertiary)" }} title="Zoom out">
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <div className="text-xs font-mono w-14 text-center flex-shrink-0" style={{ color: "var(--text-tertiary)" }}>
-          {Math.round(pxPerSec)}px/s
-        </div>
-        <button onClick={() => zoom(1.4)} className="p-1.5 rounded" style={{ color: "var(--text-tertiary)" }} title="Zoom in">
-          <ZoomIn className="w-4 h-4" />
-        </button>
-      </div>
+            {/* Right: zoom controls */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => zoom(0.7)} className="p-1.5 rounded" style={{ color: "var(--text-tertiary)" }} title="Zoom out">
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <div className="text-xs font-mono w-14 text-center flex-shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                {Math.round(pxPerSec)}px/s
+              </div>
+              <button onClick={() => zoom(1.4)} className="p-1.5 rounded" style={{ color: "var(--text-tertiary)" }} title="Zoom in">
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Scrollable timeline canvas ─────────────────────────────────── */}
       <div
         ref={scrollRef}
         className="overflow-x-auto overflow-y-hidden relative"
-        style={{ height: RULER_HEIGHT + TRACK_HEIGHT + 20 + "px", cursor: recState === "idle" ? "crosshair" : "default" }}
-        onClick={handleTimelineClick}
-        onMouseMove={handleTimelineMouseMove}
+        style={{ height: RULER_HEIGHT + TRACK_HEIGHT + 20 + "px", cursor: locked ? "default" : recState === "idle" ? "crosshair" : "default" }}
+        onClick={locked ? undefined : handleTimelineClick}
+        onMouseMove={locked ? undefined : handleTimelineMouseMove}
         onMouseLeave={() => setCursorSec(null)}>
 
         {/* Inner canvas — full timeline width */}
@@ -577,6 +670,7 @@ export default function ChapterTimeline({
                 onDelete={() => deleteClip(clip.id)}
                 onMove={moveClip}
                 onTrim={trimClip}
+                locked={locked}
               />
             ))}
 
@@ -636,7 +730,7 @@ export default function ChapterTimeline({
       </div>
 
       {/* ── Record controls ───────────────────────────────────────────────── */}
-      <div className="border-t flex-shrink-0" style={{ borderColor: "var(--border-subtle)" }}>
+      <div className="border-t flex-shrink-0" style={{ borderColor: "var(--border-subtle)", opacity: locked ? 0.4 : 1, pointerEvents: locked ? "none" : "auto" }}>
 
         {/* Idle — show record button */}
         {recState === "idle" && (
@@ -693,7 +787,7 @@ export default function ChapterTimeline({
                 <div className="relative w-3 h-3 rounded-full" style={{ background: "#dc2626" }} />
               </div>
               <span className="text-sm font-medium flex-1" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>
-                Recording — {formatDuration(elapsed)}
+                Recording — {formatTimecode(elapsed).split(".")[0]}<span className="opacity-50">.{formatTimecode(elapsed).split(".")[1]}</span>
                 <span className="ml-2 text-xs font-normal" style={{ color: "var(--text-tertiary)" }}>
                   from {formatDuration(Math.floor(pendingStartSec ?? 0))}
                 </span>
@@ -736,6 +830,7 @@ export default function ChapterTimeline({
 // ClipBlock — a single clip rendered on the timeline
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
 interface ClipBlockProps {
   clip: Clip;
   color: typeof CLIP_COLORS[0];
@@ -744,6 +839,7 @@ interface ClipBlockProps {
   onDelete: () => void;
   onMove: (id: string, newStart: number) => boolean;   // returns false if blocked
   onTrim: (id: string, newStart: number, newDuration: number, newFileOffset: number) => boolean;
+  locked?: boolean;
 }
 
 const CLIP_INSET = 6;
@@ -751,7 +847,7 @@ const CLIP_LABEL_H = 18;
 
 const EDGE_ZONE = 8; // px — width of trim handle on each edge
 
-function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTrim }: ClipBlockProps) {
+function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTrim, locked = false }: ClipBlockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
@@ -932,15 +1028,15 @@ function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTri
         border: `1px solid ${isHovered ? color.border : color.border + "88"}`,
         boxShadow: isHovered ? `0 0 12px ${color.border}44` : "none",
         transition: dragRef.current ? 'none' : 'border-color 0.15s, box-shadow 0.15s',
-        cursor,
+        cursor: locked ? 'default' : cursor,
         zIndex: dragRef.current ? 10 : 5,
         userSelect: 'none',
       }}
-      onMouseEnter={(e) => { e.stopPropagation(); setIsHovered(true); }}
-      onMouseLeave={() => { setIsHovered(false); handlePointerLeave(); }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
+      onMouseEnter={locked ? undefined : (e) => { e.stopPropagation(); setIsHovered(true); }}
+      onMouseLeave={locked ? undefined : () => { setIsHovered(false); handlePointerLeave(); }}
+      onPointerDown={locked ? undefined : handlePointerDown}
+      onPointerMove={locked ? undefined : handlePointerMove}
+      onPointerUp={locked ? undefined : handlePointerUp}
       onClick={(e) => e.stopPropagation()}>
 
       {/* Label overlay — floats over waveform, doesn't affect layout */}
@@ -952,8 +1048,8 @@ function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTri
         </span>
       </div>
 
-      {/* Delete button overlay — top-right corner */}
-      {isHovered && !confirmDelete && (
+      {/* Delete button overlay — top-right corner (hidden when locked) */}
+      {!locked && isHovered && !confirmDelete && (
         <button
           onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
           className="absolute top-1 right-1 rounded opacity-70 hover:opacity-100"
