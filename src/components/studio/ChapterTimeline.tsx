@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 import VUMeter from "@/components/studio/VUMeter";
+import ClipList from "@/components/studio/ClipList";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -19,6 +20,9 @@ interface Clip {
   regionStart: number;   // timeline position in seconds
   regionEnd: number;     // regionStart + visible duration
   fileOffset: number;    // seconds into file where visible region starts (left trim)
+  fileSizeBytes: number | null;
+  transcript: string | null;
+  transcriptStatus: string;  // pending | processing | done | error
   recordedAt: string;
   isActive: boolean;
 }
@@ -65,6 +69,9 @@ export default function ChapterTimeline({
         regionStart: c.regionStart ?? 0,
         regionEnd: c.regionEnd ?? (c.regionStart ?? 0) + (c.durationSeconds ?? 0),
         fileOffset: (c as any).fileOffset ?? 0,
+        fileSizeBytes: (c as any).fileSizeBytes ?? null,
+        transcript: (c as any).transcript ?? null,
+        transcriptStatus: (c as any).transcriptStatus ?? "pending",
       }))
       .sort((a, b) => a.regionStart - b.regionStart)
   );
@@ -109,6 +116,17 @@ export default function ChapterTimeline({
 
   const ticks: number[] = [];
   for (let t = 0; t <= timelineEndSec; t += tickInterval) ticks.push(t);
+
+  // Sub-ticks: 1-second marks, only when main ticks aren't already every second
+  // and zoom is high enough that 1s = at least 12px
+  const subTickInterval = 1;
+  const showSubTicks = tickInterval > 1 && pxPerSec >= 12;
+  const subTicks: number[] = [];
+  if (showSubTicks) {
+    for (let t = 0; t <= timelineEndSec; t += subTickInterval) {
+      if (t % tickInterval !== 0) subTicks.push(t); // skip positions already covered by main ticks
+    }
+  }
 
   // ── Clip color assignment (stable by index in sorted order) ────────────
   function clipColor(idx: number) { return CLIP_COLORS[idx % CLIP_COLORS.length]; }
@@ -199,7 +217,15 @@ export default function ChapterTimeline({
             regionStart: take.regionStart ?? regionStart,
             regionEnd: take.regionEnd ?? regionEnd,
             fileOffset: take.fileOffset ?? 0,
+            fileSizeBytes: take.fileSizeBytes ?? null,
+            transcript: take.transcript ?? null,
+            transcriptStatus: take.transcriptStatus ?? "pending",
           };
+
+          // Fire transcription in background — don't await
+          fetch(`/api/takes/${take.id}/transcribe`, { method: "POST" })
+            .then(() => startPollingTranscript(take.id))
+            .catch(() => {});
           setClips(prev => [...prev, newClip].sort((a, b) => a.regionStart - b.regionStart));
           setPendingStartSec(null);
           pendingStartRef.current = null;
@@ -265,10 +291,16 @@ export default function ChapterTimeline({
         src.connect(ctx.destination);
 
         // When does this clip start on the timeline, relative to playhead?
-        const clipOffsetInFile = Math.max(0, startSec - clip.regionStart);
+        // fileOffset = how far into the audio file the visible region starts (left trim)
+        // clipOffsetInFile = fileOffset + how far past the clip's regionStart the playhead is
+        const playheadOffsetIntoClip = Math.max(0, startSec - clip.regionStart);
+        const clipOffsetInFile = clip.fileOffset + playheadOffsetIntoClip;
         const delayFromNow = Math.max(0, clip.regionStart - startSec);
+        // Duration to play = visible region only (don't play into trimmed-off tail)
+        const visibleDuration = clip.regionEnd - clip.regionStart;
+        const durationFromOffset = visibleDuration - playheadOffsetIntoClip;
 
-        src.start(startWallTime + delayFromNow, clipOffsetInFile);
+        src.start(startWallTime + delayFromNow, clipOffsetInFile, durationFromOffset);
         sourceNodesRef.current.push(src);
       } catch { /* skip unloadable clips */ }
     }));
@@ -300,6 +332,44 @@ export default function ChapterTimeline({
     audioCtxRef.current?.close();
   }, [stopPlayback]);
 
+  // ── Transcript polling — checks every 3s until done/error ──────────────
+  const pollTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  const startPollingTranscript = useCallback((takeId: string) => {
+    // Clear any existing poll for this take
+    const existing = pollTimersRef.current.get(takeId);
+    if (existing) clearInterval(existing);
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chapters/${chapterId}/takes/${takeId}/transcript`);
+        if (!res.ok) return;
+        const { take } = await res.json();
+        if (take.transcriptStatus === "done" || take.transcriptStatus === "error") {
+          clearInterval(timer);
+          pollTimersRef.current.delete(takeId);
+          setClips(prev => prev.map(c =>
+            c.id === takeId
+              ? { ...c, transcript: take.transcript, transcriptStatus: take.transcriptStatus }
+              : c
+          ));
+        } else if (take.transcriptStatus === "processing") {
+          // Still going — update status indicator
+          setClips(prev => prev.map(c =>
+            c.id === takeId ? { ...c, transcriptStatus: "processing" } : c
+          ));
+        }
+      } catch { /* ignore */ }
+    }, 3000);
+
+    pollTimersRef.current.set(takeId, timer);
+  }, [chapterId]);
+
+  // Cleanup poll timers on unmount
+  useEffect(() => () => {
+    pollTimersRef.current.forEach(t => clearInterval(t));
+  }, []);
+
   // ── Delete clip ────────────────────────────────────────────────────────
   const deleteClip = (clipId: string) => {
     setClips(prev => prev.filter(c => c.id !== clipId));
@@ -311,8 +381,9 @@ export default function ChapterTimeline({
     setClips(prev => {
       const clip = prev.find(c => c.id === id);
       if (!clip) return prev;
-      const dur = clip.durationSeconds ?? 0;
-      const newEnd = newStart + dur;
+      // Use visible (trimmed) duration, not full file duration
+      const visibleDur = clip.regionEnd - clip.regionStart;
+      const newEnd = newStart + visibleDur;
       const blocked = prev.some(c =>
         c.id !== id &&
         newStart < c.regionEnd - 0.01 &&
@@ -331,8 +402,8 @@ export default function ChapterTimeline({
     // We can't know if blocked inside setClips, so check synchronously too
     const clip = clips.find(c => c.id === id);
     if (!clip) return false;
-    const dur = clip.durationSeconds ?? 0;
-    const newEnd = newStart + dur;
+    const visibleDur = clip.regionEnd - clip.regionStart;
+    const newEnd = newStart + visibleDur;
     return !clips.some(c =>
       c.id !== id &&
       newStart < c.regionEnd - 0.01 &&
@@ -461,6 +532,14 @@ export default function ChapterTimeline({
             className="absolute top-0 left-0 right-0 flex-shrink-0"
             style={{ height: RULER_HEIGHT + "px", background: "#080809", borderBottom: "1px solid rgba(255,255,255,0.06)", zIndex: 10 }}
             onClick={(e) => { e.stopPropagation(); handleRulerClick(e); }}>
+            {/* Sub-ticks — 1-second marks, no label, shorter line */}
+            {subTicks.map(t => (
+              <div key={t} className="absolute bottom-0"
+                style={{ left: t * pxPerSec, transform: "translateX(-50%)", pointerEvents: "none" }}>
+                <div style={{ width: 1, height: 4, background: "rgba(255,255,255,0.09)" }} />
+              </div>
+            ))}
+            {/* Main ticks — labeled */}
             {ticks.map(t => (
               <div key={t} className="absolute top-0 flex flex-col items-center"
                 style={{ left: t * pxPerSec, transform: "translateX(-50%)" }}>
@@ -476,7 +555,12 @@ export default function ChapterTimeline({
           <div className="absolute left-0 right-0"
             style={{ top: RULER_HEIGHT, height: TRACK_HEIGHT, background: "rgba(255,255,255,0.015)" }}>
 
-            {/* Subtle grid lines */}
+            {/* Sub-tick grid lines — even fainter */}
+            {subTicks.map(t => (
+              <div key={t} className="absolute top-0 bottom-0"
+                style={{ left: t * pxPerSec, width: 1, background: "rgba(255,255,255,0.02)" }} />
+            ))}
+            {/* Main tick grid lines */}
             {ticks.map(t => (
               <div key={t} className="absolute top-0 bottom-0"
                 style={{ left: t * pxPerSec, width: 1, background: "rgba(255,255,255,0.04)" }} />
@@ -641,6 +725,9 @@ export default function ChapterTimeline({
           </div>
         )}
       </div>
+
+      {/* ── Clip list with transcripts ────────────────────────────────── */}
+      <ClipList clips={clips} />
     </div>
   );
 }

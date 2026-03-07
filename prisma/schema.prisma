@@ -118,8 +118,10 @@ model Take {
   // Region this take replaces in the master recording (null = full replacement)
   regionStart     Float?    // seconds — position on the timeline
   regionEnd       Float?    // seconds — regionStart + visible duration
-  fileOffset      Float?    @default(0) // seconds into the audio file where playback starts (left trim)
-  isActive        Boolean   @default(true)
+  fileOffset        Float?    @default(0) // seconds into the audio file where playback starts (left trim)
+  transcript        String?   // whisper transcription text
+  transcriptStatus  String    @default("pending") // pending | processing | done | error
+  isActive          Boolean   @default(true)
   recordedAt      DateTime  @default(now())
   createdAt       DateTime  @default(now())
 }

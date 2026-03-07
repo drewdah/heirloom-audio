@@ -59,6 +59,9 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
       regionStart: t.regionStart ?? 0,
       regionEnd: t.regionEnd ?? (t.regionStart ?? 0) + (t.durationSeconds ?? 0),
       fileOffset: (t as any).fileOffset ?? 0,
+      fileSizeBytes: t.fileSizeBytes ?? null,
+      transcript: (t as any).transcript ?? null,
+      transcriptStatus: (t as any).transcriptStatus ?? "pending",
       recordedAt: t.recordedAt.toString(),
       isActive: t.isActive,
     }))

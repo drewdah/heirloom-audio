@@ -88,14 +88,34 @@ export async function ensureRootFolder(userId: string): Promise<string> {
   return folderId;
 }
 
+/** Verify a Drive folder ID still exists, return true if it does */
+async function driveItemExists(drive: Awaited<ReturnType<typeof getDriveClient>>, fileId: string): Promise<boolean> {
+  try {
+    await drive.files.get({ fileId, fields: "id,trashed" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Ensure a book folder exists inside the root folder, return its ID */
 export async function ensureBookFolder(userId: string, bookId: string): Promise<string> {
   const book = await prisma.book.findUnique({ where: { id: bookId } });
   if (!book) throw new Error("Book not found");
-  if (book.driveFolderId) return book.driveFolderId;
+
+  const drive = await getDriveClient(userId);
+
+  // Verify cached folder still exists in Drive before trusting it
+  if (book.driveFolderId && await driveItemExists(drive, book.driveFolderId)) {
+    return book.driveFolderId;
+  }
+
+  // Folder missing or deleted — clear the cached ID and recreate
+  if (book.driveFolderId) {
+    await prisma.book.update({ where: { id: bookId }, data: { driveFolderId: null } });
+  }
 
   const rootFolderId = await ensureRootFolder(userId);
-  const drive = await getDriveClient(userId);
 
   // Include short ID in folder name to handle duplicate book titles
   const shortId = bookId.slice(-6).toUpperCase();

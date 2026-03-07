@@ -40,52 +40,54 @@ def transcribe_file(file_path: str, language: str = "en") -> str:
 
 
 def process_job(job: dict):
+    # Support both chapter-level and take-level transcription jobs
+    take_id    = job.get("takeId")
     chapter_id = job.get("chapterId")
-    file_path = job.get("filePath")
-    language = job.get("language", "en")
-    callback_secret = job.get("secret", "")
+    file_path  = job.get("filePath")
+    language   = job.get("language", "en")
+    secret     = job.get("secret", "")
 
-    if not chapter_id or not file_path:
-        log.warning("Invalid job: missing chapterId or filePath")
+    if not file_path or not (take_id or chapter_id):
+        log.warning("Invalid job: missing filePath or id")
         return
 
     full_path = os.path.join(UPLOAD_PATH, file_path) if not file_path.startswith("/") else file_path
 
     if not os.path.exists(full_path):
         log.error(f"File not found: {full_path}")
-        notify_failure(chapter_id, "File not found", callback_secret)
+        _notify(take_id, chapter_id, None, "File not found", secret)
         return
 
-    log.info(f"Transcribing chapter {chapter_id}: {full_path}")
+    label = take_id or chapter_id
+    log.info(f"Transcribing {label}: {full_path}")
     try:
         text = transcribe_file(full_path, language)
-        log.info(f"Transcription complete for {chapter_id}: {len(text)} chars")
-        notify_success(chapter_id, text, callback_secret)
+        log.info(f"Transcription complete for {label}: {len(text)} chars")
+        _notify(take_id, chapter_id, text, None, secret)
     except Exception as e:
-        log.error(f"Transcription failed for {chapter_id}: {e}")
-        notify_failure(chapter_id, str(e), callback_secret)
+        log.error(f"Transcription failed for {label}: {e}")
+        _notify(take_id, chapter_id, None, str(e), secret)
 
 
-def notify_success(chapter_id: str, text: str, secret: str):
+def _notify(take_id, chapter_id, text, error, secret):
+    """POST result back to the Next.js app."""
+    if take_id:
+        url = f"{APP_CALLBACK}/api/takes/{take_id}/transcribe/callback"
+    else:
+        url = f"{APP_CALLBACK}/api/chapters/{chapter_id}/transcribe"
+
+    payload = {"secret": secret}
+    if text is not None:
+        payload["transcription"] = text
+        payload["status"] = "done" if take_id else "COMPLETE"
+    else:
+        payload["error"] = error
+        payload["status"] = "error" if take_id else "FAILED"
+
     try:
-        requests.post(
-            f"{APP_CALLBACK}/api/chapters/{chapter_id}/transcribe",
-            json={"transcription": text, "status": "COMPLETE", "secret": secret},
-            timeout=10,
-        )
+        requests.post(url, json=payload, timeout=10)
     except Exception as e:
         log.error(f"Failed to notify app: {e}")
-
-
-def notify_failure(chapter_id: str, error: str, secret: str):
-    try:
-        requests.post(
-            f"{APP_CALLBACK}/api/chapters/{chapter_id}/transcribe",
-            json={"error": error, "status": "FAILED", "secret": secret},
-            timeout=10,
-        )
-    except Exception as e:
-        log.error(f"Failed to notify app of failure: {e}")
 
 
 def main():
