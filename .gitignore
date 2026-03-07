@@ -44,3 +44,6 @@ Thumbs.db
 public/covers/*.jpg
 public/covers/*.png
 public/covers/*.webp
+
+# Locally staged take recordings (backed up to Drive)
+public/takes/

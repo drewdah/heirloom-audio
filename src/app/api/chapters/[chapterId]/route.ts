@@ -17,7 +17,11 @@ export async function PATCH(
   const body = await req.json();
   const updated = await prisma.chapter.update({
     where: { id: chapterId },
-    data: { title: body.title ?? chapter.title },
+    data: {
+      title: body.title ?? chapter.title,
+      // Allow explicit null to clear the group, or a new string to set it
+      ...("groupTitle" in body ? { groupTitle: body.groupTitle || null } : {}),
+    },
   });
   return NextResponse.json(updated);
 }

@@ -55,6 +55,10 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
     }
   };
 
+  // Group chapters by groupTitle for visual separation
+  // We track when the groupTitle changes to insert a header row
+  let lastGroupTitle: string | null | undefined = undefined;
+
   return (
     <div className="space-y-1">
       {chapters.map((chapter) => {
@@ -62,8 +66,24 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
         const isDragging = dragging === chapter.id;
         const isOver = dragOver === chapter.id;
 
+        // Insert a group header when groupTitle changes
+        const showGroupHeader = chapter.groupTitle !== lastGroupTitle;
+        lastGroupTitle = chapter.groupTitle;
+
         return (
           <div key={chapter.id}>
+            {/* Group header */}
+            {showGroupHeader && chapter.groupTitle && (
+              <div className="flex items-center gap-3 px-3 pt-4 pb-1 first:pt-0">
+                <span
+                  className="text-xs font-semibold uppercase tracking-widest"
+                  style={{ color: "var(--accent)", fontFamily: "var(--font-sans)", letterSpacing: "0.12em" }}>
+                  {chapter.groupTitle}
+                </span>
+                <div className="flex-1 h-px" style={{ background: "rgba(58,123,213,0.2)" }} />
+              </div>
+            )}
+
             <div
               draggable
               onDragStart={() => handleDragStart(chapter.id)}
@@ -76,6 +96,7 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
                 border: `1px solid ${isOver ? "var(--accent)" : "transparent"}`,
                 opacity: isDragging ? 0.4 : 1,
                 cursor: "grab",
+                paddingLeft: chapter.groupTitle ? "1.5rem" : undefined, // indent grouped chapters
               }}>
 
               {/* Drag handle */}
@@ -107,7 +128,7 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
                 </span>
               ) : null}
 
-              {/* Status — complete > recorded > unrecorded */}
+              {/* Status */}
               {chapter.recordingComplete
                 ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--green)" }} title="Complete" />
                 : hasAudio

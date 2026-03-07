@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uploadAudioToDrive } from "@/lib/google-drive";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -62,26 +64,17 @@ export async function POST(
     : "";
   const label = `Take ${takeNumber}${regionLabel}`;
 
-  const orderStr = String(chapter.order).padStart(2, "0");
-  const slug = chapter.title.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 30);
-  const fileName = `${orderStr}-${slug}-take${takeNumber}.${ext}`;
-
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { fileId, webViewLink } = await uploadAudioToDrive(
-    session.user.id,
-    chapter.bookId,
-    fileName,
-    buffer,
-    baseType
-  );
 
-  const take = await prisma.take.create({
+  // ── Step 1: Save locally for immediate playback ──────────────────────────
+  // Create a placeholder take to get its ID for the filename
+  const tempTake = await prisma.take.create({
     data: {
       chapterId,
       label,
-      audioFileUrl: `/api/chapters/${chapterId}/takes/${fileId}/stream`,
-      audioDriveId: fileId,
-      audioFileName: fileName,
+      audioFileUrl: null,
+      audioDriveId: null,
+      audioFileName: null,
       fileSizeBytes: file.size,
       durationSeconds,
       regionStart,
@@ -90,7 +83,50 @@ export async function POST(
     },
   });
 
-  return NextResponse.json({ take, driveUrl: webViewLink });
+  const localFileName = `${tempTake.id}.${ext}`;
+  const localDir = join(process.cwd(), "public", "takes");
+  const localPath = join(localDir, localFileName);
+  const localUrl = `/takes/${localFileName}`;
+
+  try {
+    await mkdir(localDir, { recursive: true });
+    await writeFile(localPath, buffer);
+  } catch (err) {
+    console.error("[takes] Local save failed:", err);
+  }
+
+  // Update DB with local URL immediately so UI can render waveform
+  const take = await prisma.take.update({
+    where: { id: tempTake.id },
+    data: {
+      audioFileUrl: localUrl,
+      audioFileName: localFileName,
+    },
+  });
+
+  // ── Step 2: Upload to Drive in background ────────────────────────────────
+  const orderStr = String(chapter.order).padStart(2, "0");
+  const slug = chapter.title.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 30);
+  const driveName = `${orderStr}-${slug}-take${takeNumber}.${ext}`;
+
+  // Fire and forget — update DB when done
+  uploadAudioToDrive(session.user.id, chapter.bookId, driveName, buffer, baseType)
+    .then(async ({ fileId }) => {
+      await prisma.take.update({
+        where: { id: take.id },
+        data: {
+          audioDriveId: fileId,
+          audioFileName: driveName,
+          // Keep local URL for fast serving — switch to stream URL once Drive is done
+          audioFileUrl: localUrl,
+        },
+      });
+    })
+    .catch((err) => {
+      console.error("[takes] Drive upload failed (non-fatal):", err);
+    });
+
+  return NextResponse.json({ take });
 }
 
 function formatSecs(s: number) {

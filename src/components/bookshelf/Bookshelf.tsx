@@ -240,7 +240,7 @@ function ShelfRow({ books, globalOffset, isLastRow, hasSpace }: {
         right: 0,
         top: "100%",
         height: "68px",
-        background: "linear-gradient(180deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 100%)",
+        background: "rgba(0,0,0,0.88)",
         opacity: tooltip ? 1 : 0,
         pointerEvents: "none",
         transition: "opacity 0.15s ease",

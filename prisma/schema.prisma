@@ -90,6 +90,7 @@ model Chapter {
   book                 Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
   order                Int
   title                String
+  groupTitle           String?   // e.g. "Genesis" — used as M4B chapter group prefix
   durationSeconds      Float?
   audioFileUrl         String?
   audioDriveId         String?
@@ -115,8 +116,9 @@ model Take {
   fileSizeBytes   Int?
   durationSeconds Float?
   // Region this take replaces in the master recording (null = full replacement)
-  regionStart     Float?    // seconds
-  regionEnd       Float?    // seconds
+  regionStart     Float?    // seconds — position on the timeline
+  regionEnd       Float?    // seconds — regionStart + visible duration
+  fileOffset      Float?    @default(0) // seconds into the audio file where playback starts (left trim)
   isActive        Boolean   @default(true)
   recordedAt      DateTime  @default(now())
   createdAt       DateTime  @default(now())

@@ -112,8 +112,8 @@ export default function VUMeter({ stream, isRecording }: VUMeterProps) {
     ctx.clearRect(0, 0, w, h);
 
     const barW = Math.floor((w - (BAR_COUNT - 1) * 2) / BAR_COUNT);
-    const activeCount = Math.round(Math.min(rms * 2.8, 1) * BAR_COUNT);
-    const peakBar = Math.round(Math.min(peak * 2.8, 1) * (BAR_COUNT - 1));
+    const activeCount = Math.round(Math.min(rms * 9, 1) * BAR_COUNT);
+    const peakBar = Math.round(Math.min(peak * 9, 1) * (BAR_COUNT - 1));
 
     for (let i = 0; i < BAR_COUNT; i++) {
       const x = i * (barW + 2);
