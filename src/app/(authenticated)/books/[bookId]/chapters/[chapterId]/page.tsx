@@ -13,6 +13,7 @@ export default async function ChapterPage({ params }: { params: Promise<{ bookId
       book: {
         include: { chapters: true },
       },
+      takes: { orderBy: { createdAt: "asc" } },
     },
   });
 

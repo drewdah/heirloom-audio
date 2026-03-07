@@ -98,8 +98,28 @@ model Chapter {
   transcription        String?
   transcriptionStatus  String   @default("PENDING")
   recordedAt           DateTime?
+  recordingComplete    Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  takes                Take[]
+}
+
+model Take {
+  id              String    @id @default(cuid())
+  chapterId       String
+  chapter         Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  label           String    // e.g. "Take 2 — 01:23–01:45"
+  audioFileUrl    String?
+  audioDriveId    String?
+  audioFileName   String?
+  fileSizeBytes   Int?
+  durationSeconds Float?
+  // Region this take replaces in the master recording (null = full replacement)
+  regionStart     Float?    // seconds
+  regionEnd       Float?    // seconds
+  isActive        Boolean   @default(true)
+  recordedAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
 }
 
 model Export {

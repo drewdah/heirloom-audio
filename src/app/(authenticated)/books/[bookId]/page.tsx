@@ -20,6 +20,7 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
   if (!book || book.userId !== session!.user.id) notFound();
 
   const recordedChapters = book.chapters.filter((c) => c.audioDriveId || c.audioFileUrl).length;
+  const completedChapters = book.chapters.filter((c) => c.recordingComplete && (c.audioDriveId || c.audioFileUrl)).length;
   const totalSeconds = book.chapters.reduce((s, c) => s + (c.durationSeconds ?? 0), 0);
 
   return (
@@ -67,9 +68,36 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
 
             <div className="ha-divider" />
 
+            {/* Completion progress bar */}
+            {book.chapters.length > 0 && (
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs uppercase tracking-wider" style={{ color: "var(--text-tertiary)", fontSize: "0.6rem", fontFamily: "var(--font-sans)", fontWeight: 500, letterSpacing: "0.12em" }}>
+                    Recording Progress
+                  </span>
+                  <span className="text-xs font-mono" style={{ color: "var(--text-tertiary)" }}>
+                    {completedChapters}/{book.chapters.length} chapters complete
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-raised)" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${book.chapters.length > 0 ? (completedChapters / book.chapters.length) * 100 : 0}%`,
+                      background: completedChapters === book.chapters.length && book.chapters.length > 0
+                        ? "var(--green)"
+                        : "var(--accent)",
+                      boxShadow: completedChapters > 0 ? "0 0 8px rgba(58,123,213,0.4)" : "none",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-8 text-sm">
               {[
-                { label: "Chapters", value: `${recordedChapters}/${book.chapters.length}` },
+                { label: "Recorded", value: `${recordedChapters}/${book.chapters.length}` },
+                { label: "Complete", value: `${completedChapters}/${book.chapters.length}` },
                 { label: "Duration", value: totalSeconds > 0 ? formatDuration(totalSeconds) : "—" },
                 { label: "Version", value: book.versionTag ?? `v${book.version}` },
                 book.genre ? { label: "Genre", value: book.genre } : null,

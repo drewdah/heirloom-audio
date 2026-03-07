@@ -107,9 +107,11 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
                 </span>
               ) : null}
 
-              {/* Status */}
-              {hasAudio
-                ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--green)" }} />
+              {/* Status — complete > recorded > unrecorded */}
+              {chapter.recordingComplete
+                ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--green)" }} title="Complete" />
+                : hasAudio
+                ? <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--green)", boxShadow: "0 0 5px rgba(48,209,88,0.5)" }} title="Recorded" />
                 : <Mic className="w-4 h-4 flex-shrink-0 opacity-0 group-hover:opacity-100"
                     style={{ color: "var(--text-tertiary)" }} />}
 

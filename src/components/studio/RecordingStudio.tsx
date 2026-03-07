@@ -2,14 +2,18 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Trash2, Upload, ChevronLeft, ChevronRight, Mic } from "lucide-react";
+import { ArrowLeft, Trash2, Upload, ChevronLeft, ChevronRight, Mic, CheckCircle2, Circle } from "lucide-react";
 import AudioRecorder from "@/components/studio/AudioRecorder";
 import FileUploader from "@/components/studio/FileUploader";
 import WaveformPlayer from "@/components/studio/WaveformPlayer";
-import type { Book, Chapter } from "@prisma/client";
+import PunchInRecorder from "@/components/studio/PunchInRecorder";
+import type { Book, Chapter, Take } from "@prisma/client";
 import { formatDuration } from "@/lib/utils";
 
-type ChapterWithBook = Chapter & { book: Book & { chapters: Chapter[] } };
+type ChapterWithBook = Chapter & {
+  book: Book & { chapters: Chapter[] };
+  takes: Take[];
+};
 
 interface RecordingStudioProps {
   chapter: ChapterWithBook;
@@ -18,9 +22,11 @@ interface RecordingStudioProps {
 export default function RecordingStudio({ chapter: initialChapter }: RecordingStudioProps) {
   const router = useRouter();
   const [chapter, setChapter] = useState(initialChapter);
+  const [takes, setTakes] = useState<Take[]>(initialChapter.takes ?? []);
   const [isPending, startTransition] = useTransition();
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [panel, setPanel] = useState<"record" | "upload">("record");
+  const [completingToggle, setCompletingToggle] = useState(false);
 
   const book = chapter.book;
   const sortedChapters = [...book.chapters].sort((a, b) => a.order - b.order);
@@ -72,6 +78,24 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
     }
   };
 
+  const toggleComplete = async () => {
+    setCompletingToggle(true);
+    try {
+      const res = await fetch(`/api/chapters/${chapter.id}/complete`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ complete: !chapter.recordingComplete }),
+      });
+      if (res.ok) {
+        const { chapter: updated } = await res.json();
+        setChapter((c) => ({ ...c, recordingComplete: updated.recordingComplete }));
+        startTransition(() => router.refresh());
+      }
+    } finally {
+      setCompletingToggle(false);
+    }
+  };
+
   return (
     <div className="page-enter flex flex-col min-h-screen" style={{ background: "#080809" }}>
 
@@ -107,49 +131,91 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
 
           <div className="flex-1" />
 
-          {/* Status */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="w-2 h-2 rounded-full"
-              style={{ background: hasAudio ? "var(--green)" : "rgba(255,255,255,0.15)", boxShadow: hasAudio ? "0 0 6px rgba(48,209,88,0.5)" : "none" }} />
-            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
-              {hasAudio ? "Recorded" : "Not recorded"}
-            </span>
+          {/* Status badges */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Recorded indicator */}
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full"
+                style={{ background: hasAudio ? "var(--green)" : "rgba(255,255,255,0.15)", boxShadow: hasAudio ? "0 0 6px rgba(48,209,88,0.5)" : "none" }} />
+              <span className="text-xs hidden sm:inline" style={{ color: "var(--text-tertiary)" }}>
+                {hasAudio ? "Recorded" : "Not recorded"}
+              </span>
+            </div>
+            {/* Complete indicator */}
+            {chapter.recordingComplete && (
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "var(--green)" }} />
+                <span className="text-xs hidden sm:inline" style={{ color: "var(--green)" }}>Complete</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-6 flex-1">
 
-        {/* ── Chapter title ── */}
-        <div>
-          <p className="text-xs uppercase tracking-widest mb-1"
-            style={{ color: "var(--text-tertiary)", letterSpacing: "0.15em", fontFamily: "var(--font-sans)", fontWeight: 500 }}>
-            Chapter {chapter.order}
-          </p>
-          <div className="flex items-baseline gap-4">
-            <h1 className="text-3xl font-display" style={{ color: "var(--text-primary)" }}>
-              {chapter.title}
-            </h1>
-            {chapter.durationSeconds && (
-              <span className="text-sm flex-shrink-0" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
-                {formatDuration(chapter.durationSeconds)}
-              </span>
-            )}
+        {/* ── Chapter title + completion toggle ── */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-widest mb-1"
+              style={{ color: "var(--text-tertiary)", letterSpacing: "0.15em", fontFamily: "var(--font-sans)", fontWeight: 500 }}>
+              Chapter {chapter.order}
+            </p>
+            <div className="flex items-baseline gap-4">
+              <h1 className="text-3xl font-display" style={{ color: "var(--text-primary)" }}>
+                {chapter.title}
+              </h1>
+              {chapter.durationSeconds && (
+                <span className="text-sm flex-shrink-0" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
+                  {formatDuration(chapter.durationSeconds)}
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* Mark complete button — only shown when audio exists */}
+          {hasAudio && (
+            <button
+              onClick={toggleComplete}
+              disabled={completingToggle}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-shrink-0 disabled:opacity-50"
+              style={{
+                background: chapter.recordingComplete ? "rgba(48,209,88,0.15)" : "var(--bg-raised)",
+                border: `1px solid ${chapter.recordingComplete ? "rgba(48,209,88,0.4)" : "var(--border-default)"}`,
+                color: chapter.recordingComplete ? "var(--green)" : "var(--text-secondary)",
+                fontFamily: "var(--font-sans)",
+              }}>
+              {chapter.recordingComplete
+                ? <CheckCircle2 className="w-4 h-4" />
+                : <Circle className="w-4 h-4" />}
+              {chapter.recordingComplete ? "Marked Complete" : "Mark as Complete"}
+            </button>
+          )}
         </div>
 
         {/* ── Waveform / empty state ── */}
         <div className="flex-1">
           {hasAudio && chapter.audioFileUrl ? (
-            <div>
+            <div className="flex flex-col gap-4">
               <WaveformPlayer
                 audioUrl={`/api/chapters/${chapter.id}/stream`}
                 fileName={chapter.audioFileName ?? undefined}
                 fileSizeBytes={chapter.audioFileSizeBytes ?? undefined}
                 duration={chapter.durationSeconds}
               />
-              {/* Delete link below waveform */}
-              <div className="mt-3 flex items-center justify-end gap-4">
+
+              {/* Punch-in recorder */}
+              {chapter.durationSeconds && chapter.durationSeconds > 0 && (
+                <PunchInRecorder
+                  chapterId={chapter.id}
+                  totalDuration={chapter.durationSeconds}
+                  existingTakes={takes}
+                  onTakeAdded={(take) => setTakes((prev) => [...prev, take])}
+                />
+              )}
+
+              {/* Delete link below */}
+              <div className="flex items-center justify-end gap-4">
                 {chapter.recordedAt && (
                   <span className="text-xs" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
                     Recorded {new Date(chapter.recordedAt).toLocaleDateString()}
@@ -180,7 +246,6 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
               </div>
             </div>
           ) : (
-            /* Empty state — prompts to record or upload */
             <div className="flex flex-col items-center justify-center rounded-xl py-16 gap-3"
               style={{ background: "#0d0d10", border: "1px dashed rgba(255,255,255,0.08)" }}>
               <div className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -201,7 +266,6 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
         <div className="rounded-xl overflow-hidden flex-shrink-0"
           style={{ background: "#0d0d10", border: "1px solid var(--border-subtle)" }}>
 
-          {/* Tab bar */}
           <div className="flex border-b" style={{ borderColor: "var(--border-subtle)" }}>
             {(["record", "upload"] as const).map((tab) => (
               <button key={tab} onClick={() => setPanel(tab)}
@@ -219,10 +283,9 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
             ))}
           </div>
 
-          {/* Panel content */}
           <div className="p-6">
             {panel === "record" ? (
-              <AudioRecorder onRecordingComplete={uploadAudio} />
+              <AudioRecorder onRecordingComplete={uploadAudio} disabled={hasAudio} />
             ) : (
               <FileUploader onUpload={uploadFile} />
             )}
