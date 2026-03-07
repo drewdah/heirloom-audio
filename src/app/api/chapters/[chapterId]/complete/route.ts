@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "redis";
+import { revalidatePath } from "next/cache";
 
 // PATCH /api/chapters/[chapterId]/complete — toggle recordingComplete
 // When marking complete: triggers audio processing pipeline
@@ -71,6 +72,7 @@ export async function PATCH(
       }
     }
 
+    revalidatePath(`/books/${chapter.bookId}`);
     return NextResponse.json({ chapter: updated });
   } else {
     // ── Unmarking complete → reset processing state ───────────────────────
@@ -89,6 +91,7 @@ export async function PATCH(
       data: { processedFileUrl: null },
     });
 
+    revalidatePath(`/books/${chapter.bookId}`);
     return NextResponse.json({ chapter: updated });
   }
 }

@@ -62,7 +62,7 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
   return (
     <div className="space-y-1">
       {chapters.map((chapter) => {
-        const hasAudio = !!(chapter.audioDriveId || chapter.audioFileUrl);
+        const hasAudio = !!(chapter.audioDriveId || chapter.audioFileUrl || chapter.processStatus === "done" || chapter.recordingComplete);
         const isDragging = dragging === chapter.id;
         const isOver = dragOver === chapter.id;
 

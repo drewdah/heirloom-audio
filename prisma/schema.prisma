@@ -78,6 +78,7 @@ model Book {
   version         Int        @default(1)
   versionTag      String?
   exportDriveId   String?
+  exportStatus    String     @default("idle") // idle | exporting | done | error
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   chapters        Chapter[]
@@ -136,7 +137,9 @@ model Export {
   version       Int
   versionTag    String
   driveFileId   String?
-  fileSizeBytes Int?
-  exportedAt    DateTime @default(now())
-  notes         String?
+  fileSizeBytes   Int?
+  exportFileUrl   String?  // local path to M4B file
+  exportStatus    String   @default("pending") // pending | done | error
+  exportedAt      DateTime @default(now())
+  notes           String?
 }

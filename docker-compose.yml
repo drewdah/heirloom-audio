@@ -51,6 +51,7 @@ services:
       - ./data/uploads:/data/uploads
       # Mount public/takes so worker can read locally-saved take files in dev
       - ./public/takes:/app/public/takes
+      - ./public/exports:/app/public/exports
       - whisper-models:/root/.cache/huggingface
     depends_on:
       redis:

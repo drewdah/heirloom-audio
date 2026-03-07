@@ -92,14 +92,27 @@ export default function Navbar({ user }: NavbarProps) {
                   alt={user.name ?? ""}
                   className="w-7 h-7 rounded-full"
                   style={{ border: "1.5px solid var(--border-default)" }}
+                  onError={e => {
+                    const el = e.currentTarget;
+                    el.style.display = "none";
+                    const fallback = el.nextElementSibling as HTMLElement | null;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
                 />
-              ) : (
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background: "var(--bg-raised)", border: "1px solid var(--border-default)" }}>
-                  <User className="w-3.5 h-3.5" style={{ color: "var(--text-secondary)" }} />
-                </div>
-              )}
+              ) : null}
+              <div
+                className="w-7 h-7 rounded-full items-center justify-center"
+                style={{
+                  display: user.image ? "none" : "flex",
+                  background: "var(--bg-raised)",
+                  border: "1px solid var(--border-default)",
+                  fontSize: "0.6rem",
+                  fontWeight: 600,
+                  color: "var(--text-secondary)",
+                  fontFamily: "var(--font-sans)",
+                }}>
+                {user.name ? user.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : <User className="w-3.5 h-3.5" />}
+              </div>
               <span className="text-xs" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}>
                 {user.name?.split(" ")[0] ?? user.email}
               </span>

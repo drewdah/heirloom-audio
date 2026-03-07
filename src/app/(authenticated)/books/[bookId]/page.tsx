@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
@@ -19,8 +21,12 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
 
   if (!book || book.userId !== session!.user.id) notFound();
 
-  const recordedChapters = book.chapters.filter((c) => c.audioDriveId || c.audioFileUrl).length;
-  const completedChapters = book.chapters.filter((c) => c.recordingComplete && (c.audioDriveId || c.audioFileUrl)).length;
+  // A chapter is "recorded" if it has a direct audio file OR has been processed via takes
+  const recordedChapters = book.chapters.filter(
+    (c) => c.audioDriveId || c.audioFileUrl || c.processStatus === "done" || c.recordingComplete
+  ).length;
+  // A chapter is "complete" when explicitly marked so — audio lives on takes, not the chapter record
+  const completedChapters = book.chapters.filter((c) => c.recordingComplete).length;
   const totalSeconds = book.chapters.reduce((s, c) => s + (c.durationSeconds ?? 0), 0);
 
   return (
@@ -63,6 +69,25 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
                 bookId={book.id}
                 bookTitle={book.title}
                 hasDriveFolder={!!book.driveFolderId}
+                book={{
+                  title: book.title,
+                  subtitle: book.subtitle,
+                  author: book.author,
+                  narrator: book.narrator,
+                  description: book.description,
+                  genre: book.genre,
+                  language: book.language,
+                  publisher: book.publisher,
+                  publishYear: book.publishYear,
+                  coverImageUrl: book.coverImageUrl,
+                }}
+                chapters={book.chapters.map(c => ({
+                  id: c.id,
+                  title: c.title,
+                  order: c.order,
+                  recordingComplete: c.recordingComplete,
+                  processStatus: c.processStatus,
+                }))}
               />
             </div>
 

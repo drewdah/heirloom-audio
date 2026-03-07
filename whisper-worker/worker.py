@@ -371,6 +371,247 @@ def _notify_process(chapter_id, processed_takes, error, secret):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# M4B Export
+# ─────────────────────────────────────────────────────────────────────────────
+
+def concat_chapter_takes(takes: list, output_path: str) -> None:
+    """Concatenate all takes for a chapter into a single WAV using FFmpeg concat demuxer."""
+    if len(takes) == 1:
+        # Single take — just copy it
+        cmd = ["ffmpeg", "-y", "-i", takes[0]["filePath"], "-c:a", "pcm_s16le", output_path]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"Single-take copy failed:\n{r.stderr[-1000:]}")
+        return
+
+    # Write concat list file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        list_path = f.name
+        for take in takes:
+            f.write(f"file '{take['filePath']}'\n")
+
+    try:
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", list_path,
+            "-c:a", "pcm_s16le",
+            output_path,
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"Concat failed:\n{r.stderr[-1000:]}")
+    finally:
+        try:
+            os.unlink(list_path)
+        except Exception:
+            pass
+
+
+def handle_export_book(job: dict):
+    export_id  = job.get("exportId")
+    book_id    = job.get("bookId")
+    version_tag = job.get("versionTag", "v1")
+    metadata   = job.get("metadata", {})
+    chapters   = job.get("chapters", [])
+    secret     = job.get("secret", "")
+
+    if not export_id or not book_id or not chapters:
+        log.warning("Invalid export_book job")
+        return
+
+    log.info(f"Exporting book {book_id} as M4B ({len(chapters)} chapters)")
+
+    # Output paths
+    exports_dir = "/app/public/exports"
+    os.makedirs(exports_dir, exist_ok=True)
+    safe_title  = "".join(c if c.isalnum() or c in "_-" else "_" for c in metadata.get("title", "book"))
+    m4b_filename = f"{safe_title}_{version_tag}.m4b"
+    m4b_path     = os.path.join(exports_dir, m4b_filename)
+    m4b_url      = f"/exports/{m4b_filename}"
+
+    chapter_wavs = []  # (title, wav_path)
+    tmp_files    = []
+
+    try:
+        # Step 1: Concatenate takes for each chapter into a per-chapter WAV
+        for ch in chapters:
+            ch_title = ch["title"]
+            ch_takes = ch["takes"]
+
+            if not ch_takes:
+                log.warning(f"Chapter '{ch_title}' has no takes, skipping")
+                continue
+
+            with tempfile.NamedTemporaryFile(suffix=f"_ch{ch['order']}.wav", delete=False) as f:
+                ch_wav = f.name
+            tmp_files.append(ch_wav)
+
+            log.info(f"Concatenating {len(ch_takes)} take(s) for chapter '{ch_title}'")
+            concat_chapter_takes(ch_takes, ch_wav)
+            chapter_wavs.append((ch_title, ch_wav))
+
+        if not chapter_wavs:
+            raise RuntimeError("No chapters with audio to export")
+
+        # Step 2: Concatenate all chapter WAVs into one master WAV
+        with tempfile.NamedTemporaryFile(suffix="_master.wav", delete=False) as f:
+            master_wav = f.name
+        tmp_files.append(master_wav)
+
+        log.info(f"Concatenating {len(chapter_wavs)} chapters into master WAV")
+        concat_chapter_takes([{"filePath": p} for _, p in chapter_wavs], master_wav)
+
+        # Step 3: Cross-book loudnorm — measure then apply
+        log.info("Running cross-book loudnorm analysis")
+        stats = measure_loudnorm(master_wav)
+
+        with tempfile.NamedTemporaryFile(suffix="_normalized.wav", delete=False) as f:
+            normalized_wav = f.name
+        tmp_files.append(normalized_wav)
+
+        measured_filter = (
+            f"loudnorm=I=-18:TP=-1.5:LRA=11"
+            f":measured_I={stats['input_i']}"
+            f":measured_TP={stats['input_tp']}"
+            f":measured_LRA={stats['input_lra']}"
+            f":measured_thresh={stats['input_thresh']}"
+            f":offset={stats['target_offset']}"
+            f":linear=true"
+        )
+        cmd_norm = [
+            "ffmpeg", "-y",
+            "-i", master_wav,
+            "-af", measured_filter,
+            "-ar", "44100", "-ac", "1", "-c:a", "pcm_s16le",
+            normalized_wav,
+        ]
+        r = subprocess.run(cmd_norm, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"Master loudnorm failed:\n{r.stderr[-1000:]}")
+
+        # Step 4: Build ffmetadata with book + chapter markers
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+            meta_path = f.name
+            f.write(";FFMETADATA1\n")
+            f.write(f"title={metadata.get('title', '')}\n")
+            f.write(f"artist={metadata.get('author', '')}\n")
+            f.write(f"album_artist={metadata.get('narrator', metadata.get('author', ''))}\n")
+            f.write(f"album={metadata.get('title', '')}\n")
+            f.write(f"comment={metadata.get('description', '')}\n")
+            f.write(f"genre={metadata.get('genre', 'Audiobook')}\n")
+            f.write(f"date={metadata.get('year', '')}\n")
+            f.write(f"language={metadata.get('language', 'en')}\n")
+            f.write(f"publisher={metadata.get('publisher', '')}\n")
+            f.write(f"copyright={metadata.get('year', '')} {metadata.get('author', '')}\n")
+
+            # Probe normalized WAV for sample rate to compute chapter timestamps in ms
+            probe = subprocess.run(
+                ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", normalized_wav],
+                capture_output=True, text=True
+            )
+            probe_data = json.loads(probe.stdout)
+            sample_rate = int(probe_data["streams"][0]["sample_rate"])
+
+            # Probe each chapter WAV for duration to build chapter start/end times
+            cursor_ms = 0
+            for ch_title, ch_wav in chapter_wavs:
+                dur_probe = subprocess.run(
+                    ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", ch_wav],
+                    capture_output=True, text=True
+                )
+                dur_data   = json.loads(dur_probe.stdout)
+                dur_sec    = float(dur_data["streams"][0].get("duration", 0))
+                dur_ms     = int(dur_sec * 1000)
+
+                f.write("\n[CHAPTER]\n")
+                f.write("TIMEBASE=1/1000\n")
+                f.write(f"START={cursor_ms}\n")
+                f.write(f"END={cursor_ms + dur_ms}\n")
+                f.write(f"title={ch_title}\n")
+                cursor_ms += dur_ms
+        tmp_files.append(meta_path)
+
+        # Step 5: Mux WAV + metadata into M4B (AAC in MP4 container)
+        log.info(f"Muxing M4B: {m4b_path}")
+
+        # Download cover art if available
+        cover_path = None
+        cover_url  = metadata.get("coverImageUrl")
+        if cover_url:
+            # Resolve relative URLs (e.g. /covers/foo.jpg) against the app base URL
+            if cover_url.startswith("/"):
+                cover_url = f"{APP_CALLBACK}{cover_url}"
+            try:
+                resp = requests.get(cover_url, timeout=10)
+                if resp.status_code == 200:
+                    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as cf:
+                        cf.write(resp.content)
+                        cover_path = cf.name
+                    tmp_files.append(cover_path)
+            except Exception as e:
+                log.warning(f"Could not download cover art: {e}")
+
+        mux_cmd = ["ffmpeg", "-y",
+            "-i", normalized_wav,
+            "-i", meta_path,
+        ]
+        if cover_path:
+            mux_cmd += ["-i", cover_path,
+                "-map", "0:a", "-map", "2:v",
+                "-c:v", "mjpeg", "-disposition:v", "attached_pic",
+            ]
+        else:
+            mux_cmd += ["-map", "0:a"]
+
+        mux_cmd += [
+            "-map_metadata", "1",
+            "-map_chapters", "1",
+            "-c:a", "aac",
+            "-b:a", "64k",
+            "-ar", "44100",
+            "-ac", "1",
+            "-f", "mp4",
+            "-movflags", "+faststart",
+            m4b_path,
+        ]
+        r = subprocess.run(mux_cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"M4B mux failed:\n{r.stderr[-2000:]}")
+
+        file_size = os.path.getsize(m4b_path)
+        log.info(f"M4B export complete: {m4b_path} ({file_size} bytes)")
+
+        _notify_export(book_id, export_id, "done", m4b_url, None, file_size, secret)
+
+    except Exception as e:
+        log.error(f"Export failed for book {book_id}: {e}")
+        _notify_export(book_id, export_id, "error", None, str(e), None, secret)
+
+    finally:
+        for p in tmp_files:
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
+
+
+def _notify_export(book_id, export_id, status, export_file_url, error, file_size, secret):
+    url = f"{APP_CALLBACK}/api/books/{book_id}/export/callback"
+    payload = {"secret": secret, "exportId": export_id, "status": status}
+    if status == "done":
+        payload["exportFileUrl"] = export_file_url
+        payload["fileSizeBytes"] = file_size
+    else:
+        payload["error"] = error
+    try:
+        requests.post(url, json=payload, timeout=30)
+    except Exception as e:
+        log.error(f"Failed to notify app of export result: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main loop
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -378,6 +619,8 @@ def process_job(job: dict):
     job_type = job.get("type", "transcribe")
     if job_type == "process_chapter":
         handle_process_chapter(job)
+    elif job_type == "export_book":
+        handle_export_book(job)
     else:
         handle_transcribe(job)
 
