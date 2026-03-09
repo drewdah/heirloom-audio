@@ -331,7 +331,8 @@ async function main() {
   console.log(`\n📚  Seeding for user: ${user.name ?? user.email} (${user.id})\n`);
 
   // Ensure covers directory exists
-  const coversDir = join(process.cwd(), "public", "covers");
+  // Use COVERS_DIR env var when seeding against a Docker instance (./data/covers)
+  const coversDir = process.env.COVERS_DIR ?? join(process.cwd(), "public", "covers");
   if (!existsSync(coversDir)) mkdirSync(coversDir, { recursive: true });
 
   for (const book of SEED_BOOKS) {

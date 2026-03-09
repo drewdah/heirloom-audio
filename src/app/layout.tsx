@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "HeirloomAudio — Family Audiobook Studio",
+  title: "Heirloom Audio",
   description: "Record, produce, and share audiobooks with the people you love.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.svg",
   },
 };
 

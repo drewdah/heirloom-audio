@@ -34,7 +34,7 @@ export default async function ShelfPage() {
                 Welcome back, {firstName}
               </p>
               <h1 className="text-3xl font-display" style={{ color: "var(--text-primary)" }}>
-                Your Library
+                Your Bookshelf
               </h1>
             </div>
             {books.length > 0 && (

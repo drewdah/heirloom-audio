@@ -1,8 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#1a1208"/>
-  <path d="M8 8h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8V8z" fill="#8b4513"/>
-  <path d="M18 8h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2V8z" fill="#5c2d0d"/>
-  <circle cx="23" cy="20" r="4" fill="#c8860a" opacity="0.9"/>
-  <rect x="21" y="19" width="4" height="2" rx="1" fill="#1a1208"/>
-  <rect x="22" y="18" width="2" height="4" rx="1" fill="#1a1208"/>
+  <!-- Blue rounded square background -->
+  <rect width="32" height="32" rx="7" fill="#3a7bd5"/>
+  <!-- Mic body capsule -->
+  <rect x="11" y="3" width="10" height="14" rx="5" fill="white" fill-opacity="0.95"/>
+  <!-- Grille lines -->
+  <line x1="11" y1="8" x2="21" y2="8" stroke="#3a7bd5" stroke-width="1.2"/>
+  <line x1="11" y1="11" x2="21" y2="11" stroke="#3a7bd5" stroke-width="1.2"/>
+  <line x1="11" y1="14" x2="21" y2="14" stroke="#3a7bd5" stroke-width="1.2"/>
+  <!-- Neck -->
+  <rect x="14.5" y="17" width="3" height="3" fill="white" fill-opacity="0.8"/>
+  <!-- Stand arm -->
+  <path d="M9 20.5 Q16 24 23 20.5" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+  <!-- Stand pole -->
+  <line x1="16" y1="23" x2="16" y2="28" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Base foot -->
+  <line x1="11" y1="28" x2="21" y2="28" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
 </svg>
