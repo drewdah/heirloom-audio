@@ -32,6 +32,7 @@ interface ChapterTimelineProps {
   chapterId: string;
   initialClips?: Clip[];
   locked?: boolean;  // true when chapter is marked complete — disables recording/editing
+  onTakeAdded?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ export default function ChapterTimeline({
   chapterId,
   initialClips = [],
   locked = false,
+  onTakeAdded,
 }: ChapterTimelineProps) {
   // ── State ──────────────────────────────────────────────────────────────
   const [clips, setClips] = useState<Clip[]>(
@@ -71,11 +73,11 @@ export default function ChapterTimeline({
       ...c,
       regionStart: c.regionStart ?? 0,
       regionEnd: c.regionEnd ?? (c.regionStart ?? 0) + (c.durationSeconds ?? 0),
-      fileOffset: (c as any).fileOffset ?? 0,
-      fileSizeBytes: (c as any).fileSizeBytes ?? null,
-      transcript: (c as any).transcript ?? null,
-      transcriptStatus: (c as any).transcriptStatus ?? "pending",
-        processedFileUrl: (c as any).processedFileUrl ?? null,
+      fileOffset: c.fileOffset ?? 0,
+      fileSizeBytes: c.fileSizeBytes ?? null,
+      transcript: c.transcript ?? null,
+      transcriptStatus: c.transcriptStatus ?? "pending",
+      processedFileUrl: c.processedFileUrl ?? null,
       }))
       .sort((a, b) => a.regionStart - b.regionStart)
   );
@@ -256,6 +258,7 @@ export default function ChapterTimeline({
             .then(() => startPollingTranscript(take.id))
             .catch(() => {});
           setClips(prev => [...prev, newClip].sort((a, b) => a.regionStart - b.regionStart));
+          onTakeAdded?.();
           setPendingStartSec(null);
           pendingStartRef.current = null;
         } catch (err) {
@@ -349,7 +352,6 @@ export default function ChapterTimeline({
         playheadRef.current = newPos;
       }
     }, 50);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clips, stopPlayback]);
 
   const togglePlayback = useCallback(() => {
@@ -467,12 +469,6 @@ export default function ChapterTimeline({
     return true;
   }, [clips, chapterId]);
 
-  // ── Mic gain ───────────────────────────────────────────────────────────
-  function handleGainChange(val: number) {
-    setMicGain(val);
-    localStorage.setItem("heirloom-mic-gain", String(val));
-    if (gainNodeRef.current) gainNodeRef.current.gain.value = val; // live update
-  }
 
   // Listen for gain changes dispatched by the AudioSettings modal
   useEffect(() => {
@@ -843,12 +839,11 @@ interface ClipBlockProps {
 }
 
 const CLIP_INSET = 6;
-const CLIP_LABEL_H = 18;
-
 const EDGE_ZONE = 8; // px — width of trim handle on each edge
 
 function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTrim, locked = false }: ClipBlockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wsRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -878,6 +873,7 @@ function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTri
 
   useEffect(() => {
     if (!audioUrl || !containerRef.current) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let ws: any;
     let active = true;
     setLoadError(false);
@@ -960,7 +956,7 @@ function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTri
       setDragCursor(getCursorForX(e.clientX - rect.left, rect.width));
       return;
     }
-    const { mode, startX, origStart, origDuration } = dragRef.current;
+    const { mode, startX, origStart } = dragRef.current;
     const deltaPx = e.clientX - startX;
     const deltaSec = deltaPx / pxPerSec;
 
@@ -983,7 +979,7 @@ function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTri
 
   function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragRef.current) return;
-    const { mode, startX, origStart, origDuration } = dragRef.current;
+    const { mode, startX, origStart } = dragRef.current;
     const deltaSec = (e.clientX - startX) / pxPerSec;
     dragRef.current = null;
     setDragCursor('grab');

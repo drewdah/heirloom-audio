@@ -40,7 +40,7 @@ export async function getDriveClient(userId: string) {
             : account.expires_at,
         },
       });
-    } catch (err) {
+    } catch {
       throw new Error("Google Drive token expired and could not be refreshed. Please sign out and sign in again.");
     }
   }

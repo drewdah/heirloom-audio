@@ -17,7 +17,7 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
   const [dragging, setDragging] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const reorder = async (newChapters: Chapter[]) => {
     setChapters(newChapters);
@@ -130,7 +130,7 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
 
               {/* Status */}
               {chapter.recordingComplete
-                ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--green)" }} title="Complete" />
+                ? <span title="Complete"><CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--green)" }} /></span>
                 : hasAudio
                 ? <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--green)", boxShadow: "0 0 5px rgba(48,209,88,0.5)" }} title="Recorded" />
                 : <Mic className="w-4 h-4 flex-shrink-0 opacity-0 group-hover:opacity-100"

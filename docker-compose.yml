@@ -21,6 +21,9 @@ services:
     volumes:
       - ./data/db:/data/db
       - ./data/uploads:/data/uploads
+      - ./data/covers:/app/public/covers
+      - ./public/takes:/app/public/takes
+      - ./public/exports:/app/public/exports
     depends_on:
       redis:
         condition: service_healthy

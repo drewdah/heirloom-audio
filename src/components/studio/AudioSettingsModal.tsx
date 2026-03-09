@@ -150,9 +150,11 @@ export default function AudioSettingsModal({ open, onClose }: AudioSettingsModal
         peakRef.current = rms;
         peakHoldRef.current = 45;
       } else {
-        peakHoldRef.current > 0
-          ? peakHoldRef.current--
-          : (peakRef.current = Math.max(0, peakRef.current - 0.005));
+        if (peakHoldRef.current > 0) {
+          peakHoldRef.current--;
+        } else {
+          peakRef.current = Math.max(0, peakRef.current - 0.005);
+        }
       }
 
       drawMeter(ctx2d, canvas.width, canvas.height, rms, peakRef.current, clipRef.current);

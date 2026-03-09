@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  async rewrites() {
+    return [
+      { source: "/covers/:filename", destination: "/api/covers/:filename" },
+      { source: "/takes/:filename", destination: "/api/takes/file/:filename" },
+    ];
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "500mb",

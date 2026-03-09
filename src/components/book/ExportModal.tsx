@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { Download, X, AlertTriangle, CheckCircle, Package, Loader2, ExternalLink } from "lucide-react";
+import { Download, X, AlertTriangle, CheckCircle, Package, Loader2 } from "lucide-react";
 
 interface Chapter {
   id: string;
@@ -59,7 +59,7 @@ function MetaRow({ label, value, missing }: { label: string; value?: string | nu
 
 export default function ExportModal({ bookId, book, chapters, onClose }: ExportModalProps) {
   const [step, setStep] = useState<ModalStep>("review");
-  const [exportId, setExportId] = useState<string | null>(null);
+  const [, setExportId] = useState<string | null>(null);
   const [versionTag, setVersionTag] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [exportFileUrl, setExportFileUrl] = useState<string | null>(null);
@@ -107,8 +107,8 @@ export default function ExportModal({ bookId, book, chapters, onClose }: ExportM
       }
       setExportId(data.exportId);
       setVersionTag(data.versionTag);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
       setStep("error");
     }
   };

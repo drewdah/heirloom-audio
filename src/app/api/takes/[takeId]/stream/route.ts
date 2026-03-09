@@ -38,9 +38,10 @@ export async function GET(
 
     const stream = driveRes.data as NodeJS.ReadableStream;
     const status = (driveRes.status as number) ?? 200;
-    const contentType = (driveRes.headers as any)["content-type"] ?? "audio/webm";
-    const contentLength = (driveRes.headers as any)["content-length"];
-    const contentRange = (driveRes.headers as any)["content-range"];
+    const h = driveRes.headers as Record<string, string>;
+    const contentType = h["content-type"] ?? "audio/webm";
+    const contentLength = h["content-length"];
+    const contentRange = h["content-range"];
 
     const headers: Record<string, string> = {
       "Content-Type": contentType,
@@ -52,7 +53,7 @@ export async function GET(
     if (contentRange) headers["Content-Range"] = contentRange;
 
     const { Readable } = await import("stream");
-    const webStream = Readable.toWeb(stream as any) as ReadableStream;
+    const webStream = Readable.toWeb(stream as import("stream").Readable) as ReadableStream;
 
     return new NextResponse(webStream, { status, headers });
   } catch (err) {

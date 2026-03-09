@@ -47,3 +47,10 @@ public/covers/*.webp
 
 # Locally staged take recordings (backed up to Drive)
 public/takes/
+
+# Exported M4B files
+public/exports/
+
+# Claude Code workspace files
+CLAUDE.md
+.claude/

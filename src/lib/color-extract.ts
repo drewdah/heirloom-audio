@@ -14,7 +14,7 @@ export async function extractSpineColor(
   buffer: Buffer
 ): Promise<{ spine: string; bg: string; text: string } | null> {
   try {
-    const { data, info } = await sharp(buffer)
+    const { data } = await sharp(buffer)
       .resize(64, 96, { fit: "cover" })
       .removeAlpha()
       .raw()

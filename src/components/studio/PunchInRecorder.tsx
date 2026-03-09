@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useCallback } from "react";
-import { Mic, Square, Loader2, Scissors, X, Check } from "lucide-react";
+import { Mic, Square, Loader2, Scissors, X } from "lucide-react";
 import VUMeter from "@/components/studio/VUMeter";
 import RecordingTimeline from "@/components/studio/RecordingTimeline";
 import { formatDuration } from "@/lib/utils";

@@ -126,7 +126,7 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
                 { label: "Duration", value: totalSeconds > 0 ? formatDuration(totalSeconds) : "—" },
                 { label: "Version", value: book.versionTag ?? `v${book.version}` },
                 book.genre ? { label: "Genre", value: book.genre } : null,
-              ].filter(Boolean).map(({ label, value }: any) => (
+              ].filter((x): x is { label: string; value: string } => Boolean(x)).map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-xs uppercase tracking-wider mb-1"
                     style={{ color: "var(--text-tertiary)", letterSpacing: "0.1em", fontFamily: "var(--font-sans)", fontWeight: 500 }}>

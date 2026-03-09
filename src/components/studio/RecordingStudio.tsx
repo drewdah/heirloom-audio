@@ -19,10 +19,12 @@ interface RecordingStudioProps {
 export default function RecordingStudio({ chapter: initialChapter }: RecordingStudioProps) {
   const router = useRouter();
   const [chapter, setChapter] = useState(initialChapter);
-  const [isPending, startTransition] = useTransition();
+  const [hasRecorded, setHasRecorded] = useState(false);
+  const [, startTransition] = useTransition();
   const [completingToggle, setCompletingToggle] = useState(false);
   const [processStatus, setProcessStatus] = useState<"idle" | "processing" | "done" | "error">(
-    (initialChapter as any).processStatus ?? "idle"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((initialChapter as any).processStatus as "idle" | "processing" | "done" | "error") ?? "idle"
   );
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -31,7 +33,7 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
   const currentIdx = sortedChapters.findIndex((c) => c.id === chapter.id);
   const prevChapter = currentIdx > 0 ? sortedChapters[currentIdx - 1] : null;
   const nextChapter = currentIdx < sortedChapters.length - 1 ? sortedChapters[currentIdx + 1] : null;
-  const hasAudio = chapter.takes.length > 0 || !!(chapter.audioDriveId || chapter.audioFileUrl);
+  const hasAudio = hasRecorded || chapter.takes.length > 0 || !!(chapter.audioDriveId || chapter.audioFileUrl);
 
   // If we load with processStatus=processing (e.g. page refresh mid-process), resume polling
   useEffect(() => {
@@ -104,10 +106,14 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
       durationSeconds: t.durationSeconds,
       regionStart: t.regionStart ?? 0,
       regionEnd: t.regionEnd ?? (t.regionStart ?? 0) + (t.durationSeconds ?? 0),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fileOffset: (t as any).fileOffset ?? 0,
       fileSizeBytes: t.fileSizeBytes ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transcript: (t as any).transcript ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transcriptStatus: (t as any).transcriptStatus ?? "pending",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       processedFileUrl: (t as any).processedFileUrl ?? null,
       recordedAt: t.recordedAt.toString(),
       isActive: t.isActive,
@@ -250,6 +256,7 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
           chapterId={chapter.id}
           initialClips={initialClips}
           locked={isLocked}
+          onTakeAdded={() => setHasRecorded(true)}
         />
 
       </div>

@@ -45,6 +45,7 @@ export default function WaveformPlayer({
   initialTakes = [],
 }: WaveformPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wsRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -72,6 +73,7 @@ export default function WaveformPlayer({
   // ── Main WaveSurfer ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let ws: any;
     let destroyed = false;
 
@@ -425,6 +427,7 @@ interface TakeRowProps {
 
 function TakeRow({ take, color, takeNumber, totalDuration, onDelete }: TakeRowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wsRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [ready, setReady] = useState(false);
@@ -442,6 +445,7 @@ function TakeRow({ take, color, takeNumber, totalDuration, onDelete }: TakeRowPr
 
   useEffect(() => {
     if (!audioUrl || !containerRef.current) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let ws: any;
     let active = true;
 
@@ -473,6 +477,7 @@ function TakeRow({ take, color, takeNumber, totalDuration, onDelete }: TakeRowPr
         ws.on("play",  () => { if (active) setIsPlaying(true); });
         ws.on("pause", () => { if (active) setIsPlaying(false); });
         ws.on("finish",() => { if (active) setIsPlaying(false); });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ws.on("error", (e: any) => { console.error('[TakeRow] WS error', e); if (active) setLoadError(true); });
 
         await ws.load(audioUrl);

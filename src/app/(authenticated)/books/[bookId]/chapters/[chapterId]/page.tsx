@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import RecordingStudio from "@/components/studio/RecordingStudio";
 
 export default async function ChapterPage({ params }: { params: Promise<{ bookId: string; chapterId: string }> }) {
-  const { bookId, chapterId } = await params;
+  const { chapterId } = await params;
   const session = await auth();
 
   const chapter = await prisma.chapter.findUnique({

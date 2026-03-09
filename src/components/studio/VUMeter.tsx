@@ -10,6 +10,57 @@ const BAR_COUNT = 24;
 const CLIP_THRESHOLD = 0.88; // above this = clipping warning
 const WARN_THRESHOLD = 0.72; // above this = caution yellow
 
+function drawMeter(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  rms: number,
+  peak: number,
+  clipping: boolean
+) {
+  ctx.clearRect(0, 0, w, h);
+
+  const barW = Math.floor((w - (BAR_COUNT - 1) * 2) / BAR_COUNT);
+  const activeCount = Math.round(Math.min(rms * 9, 1) * BAR_COUNT);
+  const peakBar = Math.round(Math.min(peak * 9, 1) * (BAR_COUNT - 1));
+
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const x = i * (barW + 2);
+    const active = i < activeCount;
+    const isPeak = i === peakBar && peak > 0.04;
+
+    let color: string;
+    if (active || isPeak) {
+      const frac = i / BAR_COUNT;
+      if (frac >= CLIP_THRESHOLD) {
+        color = clipping ? "#ff3b30" : "rgba(255,59,48,0.9)";
+      } else if (frac >= WARN_THRESHOLD) {
+        color = "#ffd60a";
+      } else {
+        // Green gradient: dark green → bright green
+        const g = Math.round(160 + frac * 60);
+        color = `rgb(48,${g},88)`;
+      }
+      if (isPeak && !active) color = color.replace("0.9", "1");
+    } else {
+      color = "rgba(255,255,255,0.07)";
+    }
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x, 0, barW, h, 2);
+    ctx.fill();
+  }
+
+  // Clip indicator dot on far right when clipping
+  if (clipping) {
+    ctx.fillStyle = "#ff3b30";
+    ctx.beginPath();
+    ctx.arc(w - 4, 4, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 export default function VUMeter({ stream, isRecording }: VUMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number | null>(null);
@@ -24,7 +75,11 @@ export default function VUMeter({ stream, isRecording }: VUMeterProps) {
     if (!stream || !isRecording) {
       if (animRef.current) cancelAnimationFrame(animRef.current);
       // Draw empty meter
-      drawEmpty();
+      const emptyCanvas = canvasRef.current;
+      if (emptyCanvas) {
+        const emptyCtx = emptyCanvas.getContext("2d");
+        if (emptyCtx) drawMeter(emptyCtx, emptyCanvas.width, emptyCanvas.height, 0, 0, false);
+      }
       return;
     }
 
@@ -92,65 +147,6 @@ export default function VUMeter({ stream, isRecording }: VUMeterProps) {
       audioCtx.close();
     };
   }, [stream, isRecording]);
-
-  const drawEmpty = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    drawMeter(ctx, canvas.width, canvas.height, 0, 0, false);
-  };
-
-  const drawMeter = (
-    ctx: CanvasRenderingContext2D,
-    w: number,
-    h: number,
-    rms: number,
-    peak: number,
-    clipping: boolean
-  ) => {
-    ctx.clearRect(0, 0, w, h);
-
-    const barW = Math.floor((w - (BAR_COUNT - 1) * 2) / BAR_COUNT);
-    const activeCount = Math.round(Math.min(rms * 9, 1) * BAR_COUNT);
-    const peakBar = Math.round(Math.min(peak * 9, 1) * (BAR_COUNT - 1));
-
-    for (let i = 0; i < BAR_COUNT; i++) {
-      const x = i * (barW + 2);
-      const active = i < activeCount;
-      const isPeak = i === peakBar && peak > 0.04;
-
-      let color: string;
-      if (active || isPeak) {
-        const frac = i / BAR_COUNT;
-        if (frac >= CLIP_THRESHOLD) {
-          color = clipping ? "#ff3b30" : "rgba(255,59,48,0.9)";
-        } else if (frac >= WARN_THRESHOLD) {
-          color = "#ffd60a";
-        } else {
-          // Green gradient: dark green → bright green
-          const g = Math.round(160 + frac * 60);
-          color = `rgb(48,${g},88)`;
-        }
-        if (isPeak && !active) color = color.replace("0.9", "1");
-      } else {
-        color = "rgba(255,255,255,0.07)";
-      }
-
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(x, 0, barW, h, 2);
-      ctx.fill();
-    }
-
-    // Clip indicator dot on far right when clipping
-    if (clipping) {
-      ctx.fillStyle = "#ff3b30";
-      ctx.beginPath();
-      ctx.arc(w - 4, 4, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  };
 
   return (
     <div className="flex flex-col gap-1.5 w-full">
