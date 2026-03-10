@@ -11,39 +11,39 @@ HeirloomAudio is a self-hosted web app for recording professional-quality M4B au
 <table>
   <tr>
     <td align="center">
-      <a href=".github/assets/shelf-row.png"><img src=".github/assets/shelf-row.png" width="280" alt="Bookshelf"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/shelf-row.png"><img src=".github/assets/shelf-row.png" width="280" alt="Bookshelf"/></a>
       <br/><sub><b>Personal bookshelf</b></sub>
     </td>
     <td align="center">
-      <a href=".github/assets/book-chapters.png"><img src=".github/assets/book-chapters.png" width="280" alt="Book detail"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/book-chapters.png"><img src=".github/assets/book-chapters.png" width="280" alt="Book detail"/></a>
       <br/><sub><b>Book detail & chapters</b></sub>
     </td>
     <td align="center">
-      <a href=".github/assets/add-book.png"><img src=".github/assets/add-book.png" width="280" alt="New book form"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/add-book.png"><img src=".github/assets/add-book.png" width="280" alt="New book form"/></a>
       <br/><sub><b>New book setup</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href=".github/assets/chapter-recording.png"><img src=".github/assets/chapter-recording.png" width="280" alt="Recording studio"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/chapter-recording.png"><img src=".github/assets/chapter-recording.png" width="280" alt="Recording studio"/></a>
       <br/><sub><b>Chapter recording studio</b></sub>
     </td>
     <td align="center">
-      <a href=".github/assets/chapter-recording-transcription.png"><img src=".github/assets/chapter-recording-transcription.png" width="280" alt="Transcription"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/chapter-recording-transcription.png"><img src=".github/assets/chapter-recording-transcription.png" width="280" alt="Transcription"/></a>
       <br/><sub><b>Auto-transcription of takes</b></sub>
     </td>
     <td align="center">
-      <a href=".github/assets/audio-settings.png"><img src=".github/assets/audio-settings.png" width="280" alt="Audio settings"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/audio-settings.png"><img src=".github/assets/audio-settings.png" width="280" alt="Audio settings"/></a>
       <br/><sub><b>Microphone & monitor settings</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href=".github/assets/export-modal.png"><img src=".github/assets/export-modal.png" width="280" alt="Export modal"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/export-modal.png"><img src=".github/assets/export-modal.png" width="280" alt="Export modal"/></a>
       <br/><sub><b>M4B export preview</b></sub>
     </td>
     <td align="center">
-      <a href=".github/assets/m4b-export.png"><img src=".github/assets/m4b-export.png" width="280" alt="Export complete"/></a>
+      <a href="https://github.com/drewdah/heirloom-audio/blob/main/.github/assets/m4b-export.png"><img src=".github/assets/m4b-export.png" width="280" alt="Export complete"/></a>
       <br/><sub><b>Export complete</b></sub>
     </td>
     <td></td>
