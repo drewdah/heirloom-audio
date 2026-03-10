@@ -2,7 +2,7 @@
 
 > *Record, produce, and share audiobooks with the people you love.*
 
-HeirloomAudio is a self-hosted web app for recording professional-quality M4B audiobooks.
+Heirloom Audio is a self-hosted web app for recording professional-quality M4B audiobooks.
 
 ---
 
