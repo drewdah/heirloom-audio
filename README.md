@@ -6,6 +6,18 @@ HeirloomAudio is a self-hosted web app for recording professional-quality M4B au
 
 ---
 
+## ✨ Features
+
+- 📚 **Skeuomorphic bookshelf** — beautiful dark library UI
+- 🎙 **In-browser recording** — record chapter by chapter with your microphone
+- ☁️ **Google Drive storage** — audio stored in your own Drive
+- 📝 **Auto-transcription** — local Whisper AI, no API key needed
+- 🎛 **Audio processing** — FFmpeg/SoX presets (EQ, de-esser, normalize)
+- 📦 **M4B export** — professional audiobook with chapter markers
+- 🔒 **Self-hosted** — your data, your server
+
+---
+
 ## 📸 Screenshots
 
 <table>
@@ -49,18 +61,6 @@ HeirloomAudio is a self-hosted web app for recording professional-quality M4B au
     <td></td>
   </tr>
 </table>
-
----
-
-## ✨ Features
-
-- 📚 **Skeuomorphic bookshelf** — beautiful dark library UI
-- 🎙 **In-browser recording** — record chapter by chapter with your microphone
-- ☁️ **Google Drive storage** — audio stored in your own Drive
-- 📝 **Auto-transcription** — local Whisper AI, no API key needed
-- 🎛 **Audio processing** — FFmpeg/SoX presets (EQ, de-esser, normalize)
-- 📦 **M4B export** — professional audiobook with chapter markers
-- 🔒 **Self-hosted** — your data, your server
 
 ---
 
