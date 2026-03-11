@@ -54,3 +54,7 @@ public/exports/
 # Claude Code workspace files
 CLAUDE.md
 .claude/
+
+# Test artifacts
+playwright-report/
+test-results/
