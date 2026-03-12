@@ -10,15 +10,12 @@ test.describe("Chapters", () => {
     await page.goto(`/books/${seed.bookId}`);
     await expect(page.locator("text=No chapters yet")).toBeVisible();
 
-    // Click "Add Chapter"
     await page.click("text=Add Chapter");
     await expect(page).toHaveURL(new RegExp(`/books/${seed.bookId}/chapters/new`));
 
-    // Fill in the chapter title
     await page.fill('input[name="title"]', "Chapter 1");
     await page.click('button[type="submit"]');
 
-    // Should redirect to the recording studio for that chapter
     await expect(page).toHaveURL(/\/chapters\/.+/, { timeout: 10_000 });
   });
 
@@ -31,10 +28,8 @@ test.describe("Chapters", () => {
     await page.fill('input[name="title"]', "Chapter 1");
     await page.click('button[type="submit"]');
 
-    // Should redirect to recording studio
     await expect(page).toHaveURL(/\/chapters\/.+/, { timeout: 10_000 });
 
-    // Go back to book page and verify the group title appears
     await page.goto(`/books/${seed.bookId}`);
     await expect(page.locator("text=Genesis")).toBeVisible();
     await expect(page.locator("text=Chapter 1")).toBeVisible();
@@ -49,16 +44,12 @@ test.describe("Chapters", () => {
 
     await page.goto(`/books/${seed.bookId}`);
 
-    // All 3 chapters should be listed
-    const chapterLinks = page.locator("text=Chapter 1").or(
-      page.locator("text=Chapter 2")
-    ).or(page.locator("text=Chapter 3"));
     await expect(page.locator("text=Chapter 1")).toBeVisible();
     await expect(page.locator("text=Chapter 2")).toBeVisible();
     await expect(page.locator("text=Chapter 3")).toBeVisible();
 
-    // Progress should show 0/3 complete
-    await expect(page.locator("text=0/3")).toBeVisible();
+    // Progress bar label: "0/3 chapters complete"
+    await expect(page.getByText("0/3 chapters complete")).toBeVisible();
   });
 
   test("deletes a chapter from the book page", async ({ page, request }) => {
@@ -71,17 +62,17 @@ test.describe("Chapters", () => {
     await expect(page.locator("text=Chapter 1")).toBeVisible();
     await expect(page.locator("text=Chapter 2")).toBeVisible();
 
-    // Click the delete button on the first chapter
-    // The ChapterList has a trash icon button per row
-    const firstTrash = page.locator("button").filter({ has: page.locator("svg.lucide-trash-2") }).first();
-    await firstTrash.click();
+    const firstChapterId = seed.chapterIds[0];
 
-    // Confirm deletion in the inline confirm
-    await page.click("button:has-text('Delete'):visible");
+    // Click the trash icon (opacity-0 in CSS, so use force:true)
+    await page.locator(`[data-testid="chapter-delete-trigger-${firstChapterId}"]`).click({ force: true });
 
-    // Should now show only 1 chapter
+    // Click the confirm Delete button in the inline panel
+    await page.locator(`[data-testid="chapter-delete-confirm-${firstChapterId}"]`).click();
+
+    // Chapter 1 link should be gone; Chapter 2 remains
+    await expect(page.getByRole("link", { name: "Chapter 1" })).not.toBeVisible({ timeout: 5_000 });
     await expect(page.locator("text=Chapter 2")).toBeVisible();
-    await expect(page.locator("text=Chapter 1")).not.toBeVisible({ timeout: 5_000 });
   });
 
   test("navigates from book page to recording studio", async ({ page, request }) => {
@@ -92,8 +83,8 @@ test.describe("Chapters", () => {
 
     await page.goto(`/books/${seed.bookId}`);
 
-    // Click on the chapter row to navigate to the recording studio
-    await page.click("text=Chapter 1");
+    // Click the chapter title link
+    await page.getByRole("link", { name: "Chapter 1" }).click();
 
     await expect(page).toHaveURL(/\/chapters\/.+/, { timeout: 5_000 });
   });

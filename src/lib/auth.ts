@@ -28,16 +28,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = user.email?.toLowerCase() ?? "";
       return allowedEmails.includes(email);
     },
-    async jwt({ token, user }) {
-      // On first sign-in, persist the DB user id into the token
-      if (user) {
-        token.userId = user.id;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user && token.userId) {
-        session.user.id = token.userId as string;
+    async session({ session, user }) {
+      // With database strategy, `user` is the DB user record
+      if (session.user && user?.id) {
+        session.user.id = user.id;
       }
       return session;
     },
@@ -47,7 +41,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/auth/error",
   },
   session: {
-    strategy: "jwt",
+    // database strategy is required for E2E tests: the seed endpoint creates a real
+    // session row with token "test-session-token", which NextAuth looks up here.
+    // With jwt strategy the cookie must be a signed JWT, making test auth impossible.
+    strategy: "database",
   },
   trustHost: true,
 });

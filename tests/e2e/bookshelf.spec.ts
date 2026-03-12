@@ -11,29 +11,23 @@ test.describe("Bookshelf", () => {
   test("shows empty shelf for new user", async ({ page }) => {
     await page.goto("/shelf");
     await expect(page.locator("h1")).toContainText("Your Bookshelf");
-    // Empty state should show some kind of prompt to create a book
-    await expect(page.locator("text=New Book").or(page.locator('a[href="/books/new"]'))).toBeVisible();
+    // EmptyShelf renders a "Record Your First Book" CTA — confirm a /books/new link exists in main
+    await expect(page.locator('main a[href="/books/new"]').first()).toBeVisible();
   });
 
   test("creates a new book and shows it on the shelf", async ({ page }) => {
-    await page.goto("/shelf");
+    await page.goto("/books/new");
 
-    // Click through to the new book form
-    await page.click('a[href="/books/new"]');
-    await expect(page).toHaveURL("/books/new");
+    // BookForm uses controlled inputs — title is the first required text input
+    await page.locator('input[type="text"][required]').first().fill("Genesis Recording");
+    // Author is the second required text input
+    await page.locator('input[type="text"][required]').nth(1).fill("Dad");
 
-    // Fill in required fields
-    await page.fill('input[type="text"][required]:first-of-type', "Genesis Recording");
-    await page.fill('input[placeholder*="Anonymous"]', "Dad");
-
-    // Submit
     await page.click('button[type="submit"]');
 
-    // Should redirect to the new book's page
     await expect(page).toHaveURL(/\/books\/.+/, { timeout: 10_000 });
     await expect(page.locator("h1")).toContainText("Genesis Recording");
 
-    // Navigate back to shelf — book should appear
     await page.goto("/shelf");
     await expect(page.locator("[data-book-id]")).toHaveCount(1, { timeout: 5_000 });
   });
@@ -54,13 +48,11 @@ test.describe("Bookshelf", () => {
     await page.goto(`/books/${seed.bookId}/edit`);
     await expect(page.locator("h1")).toContainText("Edit Book");
 
-    // Clear and type new title
-    const titleInput = page.locator('input[type="text"][required]:first-of-type');
+    const titleInput = page.locator('input[type="text"][required]').first();
     await titleInput.clear();
     await titleInput.fill("New Title");
     await page.click('button[type="submit"]');
 
-    // Should redirect back to book page with updated title
     await expect(page).toHaveURL(new RegExp(`/books/${seed.bookId}`), { timeout: 10_000 });
     await expect(page.locator("h1")).toContainText("New Title");
   });
@@ -71,19 +63,15 @@ test.describe("Bookshelf", () => {
     await page.goto("/shelf");
     await page.click("[data-book-id]");
 
-    // Click the Delete button in BookActions
+    // Open the delete dialog
     await page.click("button:has-text('Delete')");
 
-    // Delete dialog should appear
-    await expect(page.locator("text=Delete Book")).toBeVisible();
+    // The dialog has an <h2>Delete Book</h2> and a <button>Delete Book</button>
+    // Use getByRole to be unambiguous
+    await expect(page.getByRole("heading", { name: "Delete Book" })).toBeVisible();
+    await page.getByRole("button", { name: "Delete Book" }).click();
 
-    // Confirm deletion
-    await page.click("button:has-text('Delete'):not(:has-text('Cancel'))");
-
-    // Should redirect to shelf
     await expect(page).toHaveURL("/shelf", { timeout: 10_000 });
-
-    // Shelf should be empty
     await expect(page.locator("[data-book-id]")).toHaveCount(0, { timeout: 5_000 });
   });
 });

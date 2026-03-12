@@ -136,8 +136,9 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
                 : <Mic className="w-4 h-4 flex-shrink-0 opacity-0 group-hover:opacity-100"
                     style={{ color: "var(--text-tertiary)" }} />}
 
-              {/* Delete */}
+              {/* Delete trigger — opacity-0 until group-hover; use data-testid for reliable test targeting */}
               <button
+                data-testid={`chapter-delete-trigger-${chapter.id}`}
                 onClick={(e) => { e.stopPropagation(); setDeleteId(chapter.id); }}
                 className="p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ color: "var(--text-tertiary)" }}>
@@ -153,7 +154,9 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
                   Delete &ldquo;{chapter.title}&rdquo;?
                 </p>
                 <div className="flex gap-2">
-                  <button onClick={() => deleteChapter(chapter.id)}
+                  <button
+                    data-testid={`chapter-delete-confirm-${chapter.id}`}
+                    onClick={() => deleteChapter(chapter.id)}
                     className="px-3 py-1 rounded text-xs font-medium"
                     style={{ background: "var(--red)", color: "white" }}>
                     Delete

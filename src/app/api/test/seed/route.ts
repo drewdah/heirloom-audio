@@ -11,21 +11,24 @@ import { NextRequest, NextResponse } from "next/server";
  *
  * DELETE /api/test/seed — clears all content data.
  *
- * ONLY available when NODE_ENV=test.
+ * Guarded by the ENABLE_TEST_SEED environment variable.
+ * We use a custom env var instead of NODE_ENV because Next.js inlines
+ * NODE_ENV at build time — setting it at runtime has no effect.
  */
 
-function isTestEnv() {
-  return process.env.NODE_ENV === "test";
+export const dynamic = "force-dynamic";
+
+function isTestSeedEnabled() {
+  return process.env.ENABLE_TEST_SEED === "true";
 }
 
 export async function POST(req: NextRequest) {
-  if (!isTestEnv()) {
+  if (!isTestSeedEnabled()) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
 
   const { prisma } = await import("@/lib/prisma");
 
-  // Upsert the test user
   const user = await prisma.user.upsert({
     where: { email: "test@heirloom.local" },
     update: {},
@@ -36,7 +39,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Create a session matching the Playwright cookie
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await prisma.session.upsert({
     where: { sessionToken: "test-session-token" },
@@ -48,7 +50,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Optionally seed content data
   let bookId: string | null = null;
   const chapterIds: string[] = [];
 
@@ -79,7 +80,6 @@ export async function POST(req: NextRequest) {
         });
         chapterIds.push(ch.id);
 
-        // Optionally seed a take on each chapter
         if (body.take) {
           await prisma.take.create({
             data: {
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       }
     }
   } catch {
-    // Body parsing failed — that's fine, just seed user+session
+    // Body parsing failed — just seed user+session
   }
 
   return NextResponse.json({
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE() {
-  if (!isTestEnv()) {
+  if (!isTestSeedEnabled()) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
 

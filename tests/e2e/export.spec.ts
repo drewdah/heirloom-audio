@@ -17,7 +17,7 @@ test.describe("Export", () => {
 
     await page.goto(`/books/${seed.bookId}`);
 
-    // Export M4B button should be visible in BookActions
+    // Export M4B button is in BookActions
     await expect(page.locator("button:has-text('Export M4B')")).toBeVisible();
   });
 
@@ -29,21 +29,10 @@ test.describe("Export", () => {
     });
 
     await page.goto(`/books/${seed.bookId}`);
-
-    // Click Export M4B to open the modal
     await page.click("button:has-text('Export M4B')");
 
-    // The modal should appear and warn about incomplete chapters
-    // since none of the seeded chapters have recordingComplete=true
-    await expect(
-      page.locator("text=incomplete").or(
-        page.locator("text=not complete").or(
-          page.locator("text=not ready").or(
-            page.locator("text=complete all")
-          )
-        )
-      )
-    ).toBeVisible({ timeout: 5_000 });
+    // Modal appears — the blocked warning shows "Export blocked — chapters not ready"
+    await expect(page.locator("text=Export blocked")).toBeVisible({ timeout: 5_000 });
   });
 
   test("export modal can be closed", async ({ page, request }) => {
@@ -55,20 +44,13 @@ test.describe("Export", () => {
     await page.goto(`/books/${seed.bookId}`);
     await page.click("button:has-text('Export M4B')");
 
-    // Modal should be visible
-    await expect(page.locator("text=Export")).toBeVisible();
+    // Modal header should be visible
+    await expect(page.locator("text=Export Audiobook")).toBeVisible();
 
-    // Close it (look for close button or clicking outside)
-    const closeBtn = page.locator("button:has-text('Close')").or(
-      page.locator("button:has-text('Cancel')").or(
-        page.locator("button").filter({ has: page.locator("svg.lucide-x") })
-      )
-    );
-    await closeBtn.first().click();
+    // Close via the Cancel button in the footer (review step)
+    await page.click("button:has-text('Cancel')");
 
-    // Modal should disappear
-    await expect(page.locator("[role='dialog']").or(
-      page.locator("div").filter({ hasText: "Export" }).locator("visible=true")
-    )).not.toBeVisible({ timeout: 3_000 });
+    // Modal should be gone
+    await expect(page.locator("text=Export Audiobook")).not.toBeVisible({ timeout: 3_000 });
   });
 });

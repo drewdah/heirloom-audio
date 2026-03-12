@@ -5,6 +5,10 @@
  *  1. Seed a test user + session via POST /api/test/seed
  *  2. Set the session cookie so all navigation is authenticated
  *
+ * IMPORTANT: The app must be running with ENABLE_TEST_SEED=true for the
+ * seed endpoint to be available. Start Docker with:
+ *   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build
+ *
  * Usage:
  *   import { test, expect } from "./fixtures/auth";
  *
@@ -21,32 +25,45 @@ interface SeedData {
   chapterIds: string[];
 }
 
+const SEED_ERROR_MSG =
+  "The /api/test/seed endpoint is not available. " +
+  "Make sure the app is running with the CI override (sets ENABLE_TEST_SEED=true):\n\n" +
+  "  docker compose down\n" +
+  "  docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build\n";
+
+async function parseSeedResponse(res: { status: () => number; text: () => Promise<string> }): Promise<SeedData> {
+  const status = res.status();
+
+  if (status === 404) {
+    throw new Error(SEED_ERROR_MSG);
+  }
+
+  const text = await res.text();
+
+  if (text.startsWith("<!DOCTYPE") || text.startsWith("<html")) {
+    throw new Error(SEED_ERROR_MSG);
+  }
+
+  if (status >= 400) {
+    throw new Error(`Seed endpoint failed (${status}): ${text}`);
+  }
+
+  return JSON.parse(text) as SeedData;
+}
+
 export const test = base.extend<{ seedData: SeedData }>({
   seedData: async ({ page }, use) => {
-    // Default seed — just user + session, no content
     const seedRes = await page.request.post("/api/test/seed");
-
-    if (seedRes.status() === 404) {
-      throw new Error(
-        "Test seed endpoint returned 404. Is NODE_ENV=test? " +
-        "Make sure you're using docker-compose.ci.yml or have NODE_ENV=test set."
-      );
-    }
-
-    if (!seedRes.ok()) {
-      const body = await seedRes.text();
-      throw new Error(`Seed endpoint failed (${seedRes.status()}): ${body}`);
-    }
-
-    const data = await seedRes.json();
-    await use(data as SeedData);
+    const data = await parseSeedResponse(seedRes);
+    await use(data);
   },
 
   page: async ({ page, context }, use) => {
-    // Set the session cookie matching what we seeded
+    // NextAuth v5 (@auth/core) uses "authjs.session-token" on HTTP (no __Secure- prefix).
+    // NextAuth v4 used "next-auth.session-token" — v5 renamed all cookies to authjs.*
     await context.addCookies([
       {
-        name: "next-auth.session-token",
+        name: "authjs.session-token",
         value: "test-session-token",
         domain: "localhost",
         path: "/",
@@ -74,12 +91,11 @@ export async function seedContent(
     take?: boolean;
   } = {}
 ): Promise<SeedData> {
-  // Clear existing content first
   await request.delete("/api/test/seed");
   const res = await request.post("/api/test/seed", {
     data: options,
   });
-  return (await res.json()) as SeedData;
+  return parseSeedResponse(res);
 }
 
 export { expect } from "@playwright/test";

@@ -1,22 +1,18 @@
-# docker-compose.ci.yml — override for CI
+# docker-compose.ci.yml — override for CI and local E2E testing
 # Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
 #
 # Key differences from the default:
 #  - Replaces bind mounts with Docker volumes (avoids permission issues in CI)
-#  - Sets NODE_ENV=test so /api/test/seed endpoint is available
+#  - Enables the /api/test/seed endpoint via ENABLE_TEST_SEED
 #  - Disables Google Drive and Whisper worker
 
 services:
   app:
     environment:
-      NODE_ENV: test
+      ENABLE_TEST_SEED: "true"
       SKIP_DRIVE: "true"
       ALLOWED_EMAILS: ""
       WHISPER_ENABLED: "false"
-    # Override bind mounts with Docker-managed volumes.
-    # In CI, the host directories don't exist and Docker creates them as root,
-    # but the container runs as uid 1001 (nextjs) and can't write to them.
-    # Named volumes are owned by whatever uid first writes to them, which works.
     volumes:
       - ci-db:/data/db
       - ci-uploads:/data/uploads
