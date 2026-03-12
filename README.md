@@ -204,26 +204,29 @@ docker compose -f docker-compose.yml -f docker-compose.ci.yml down
 
 ```
 tests/
-├── global-setup.ts          # Creates test SQLite database before tests run
-├── setup.ts                 # Cleans database between tests
+├── global-setup.ts              # Creates test SQLite database before tests run
+├── setup.ts                     # Cleans database between tests
 ├── helpers/
-│   ├── fixtures.ts          # Factory functions (createTestUser, createTestBook, etc.)
-│   ├── auth.ts              # Auth mocking helpers
-│   └── redis.ts             # Redis queue mock
+│   ├── fixtures.ts              # Factory functions (createTestUser, createTestBook, etc.)
+│   ├── auth.ts                  # Auth mocking helpers
+│   └── redis.ts                 # Redis queue mock
 ├── unit/
 │   └── lib/
-│       ├── utils.test.ts    # formatTimecode, formatDuration, version tags
+│       ├── utils.test.ts        # formatTimecode, formatDuration, version tags
 │       └── validations.test.ts  # Audio/image spec constants
 ├── integration/
 │   └── api/
-│       ├── books.test.ts        # Book CRUD (14 tests)
-│       ├── chapters.test.ts     # Chapter CRUD + reorder (9 tests)
+│       ├── books.test.ts            # Book CRUD (19 tests)
+│       ├── chapters.test.ts         # Chapter CRUD + reorder (9 tests)
 │       ├── chapter-process.test.ts  # Audio processing pipeline (8 tests)
-│       └── book-export.test.ts  # M4B export validation + queuing (10 tests)
+│       └── book-export.test.ts      # M4B export validation + queuing (10 tests)
 └── e2e/
-    ├── fixtures/auth.ts     # Playwright auth fixture (seeds session cookie)
-    ├── smoke.spec.ts        # Health check + auth redirect
-    └── bookshelf.spec.ts    # Create book via UI
+    ├── fixtures/auth.ts             # Playwright auth fixture + seedContent helper
+    ├── smoke.spec.ts                # Health check + auth redirect
+    ├── bookshelf.spec.ts            # Create, view, edit, delete books on the shelf
+    ├── chapters.spec.ts             # Add, list, delete chapters
+    ├── recording-studio.spec.ts     # Navigate to studio, upload audio, chapter nav
+    └── export.spec.ts               # Export button, incomplete chapter warnings
 ```
 
 ### CI

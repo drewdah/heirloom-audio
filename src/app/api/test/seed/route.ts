@@ -1,16 +1,31 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+/**
+ * Test-only seed endpoint for E2E tests.
+ *
+ * POST /api/test/seed — seeds the test user + session.
+ *   Optional JSON body to also seed content:
+ *     { book: true }                    → creates a test book
+ *     { book: true, chapters: 3 }       → creates a book with 3 chapters
+ *     { book: true, chapters: 1, take: true } → book + chapter + take
+ *
+ * DELETE /api/test/seed — clears all content data.
+ *
+ * ONLY available when NODE_ENV=test.
+ */
 
 function isTestEnv() {
   return process.env.NODE_ENV === "test";
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   if (!isTestEnv()) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
 
   const { prisma } = await import("@/lib/prisma");
 
+  // Upsert the test user
   const user = await prisma.user.upsert({
     where: { email: "test@heirloom.local" },
     update: {},
@@ -21,6 +36,7 @@ export async function POST() {
     },
   });
 
+  // Create a session matching the Playwright cookie
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await prisma.session.upsert({
     where: { sessionToken: "test-session-token" },
@@ -32,10 +48,66 @@ export async function POST() {
     },
   });
 
-  return NextResponse.json({ userId: user.id, ok: true });
+  // Optionally seed content data
+  let bookId: string | null = null;
+  let chapterIds: string[] = [];
+
+  try {
+    const body = await req.json().catch(() => ({}));
+
+    if (body.book) {
+      const book = await prisma.book.create({
+        data: {
+          userId: user.id,
+          title: body.bookTitle ?? "Test Book",
+          author: body.bookAuthor ?? "Test Author",
+          language: "en",
+          versionTag: "v1-test",
+        },
+      });
+      bookId = book.id;
+
+      const numChapters = body.chapters ?? 0;
+      for (let i = 1; i <= numChapters; i++) {
+        const ch = await prisma.chapter.create({
+          data: {
+            bookId: book.id,
+            order: i,
+            title: `Chapter ${i}`,
+            groupTitle: body.groupTitle ?? null,
+          },
+        });
+        chapterIds.push(ch.id);
+
+        // Optionally seed a take on each chapter
+        if (body.take) {
+          await prisma.take.create({
+            data: {
+              chapterId: ch.id,
+              label: `Take 1`,
+              audioFileUrl: `/takes/test-take-ch${i}.webm`,
+              durationSeconds: 10,
+              regionStart: 0,
+              regionEnd: 10,
+              isActive: true,
+            },
+          });
+        }
+      }
+    }
+  } catch {
+    // Body parsing failed — that's fine, just seed user+session
+  }
+
+  return NextResponse.json({
+    userId: user.id,
+    bookId,
+    chapterIds,
+    ok: true,
+  });
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   if (!isTestEnv()) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
