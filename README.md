@@ -156,6 +156,88 @@ npm run dev
 
 ---
 
+## 🧪 Testing
+
+The project uses [Vitest](https://vitest.dev) for unit and integration tests and [Playwright](https://playwright.dev) for end-to-end browser tests. Tests run automatically on every push to `main` and on pull requests via GitHub Actions.
+
+### Running tests locally
+
+```bash
+# Install dependencies (includes test tooling)
+npm install
+
+# Run all unit + integration tests
+npm test
+
+# Run only unit tests (pure logic, no database)
+npm run test:unit
+
+# Run only integration tests (API routes against a test SQLite database)
+npm run test:integration
+
+# Watch mode — re-runs tests as you edit files
+npm run test:watch
+```
+
+### End-to-end tests
+
+E2E tests use Playwright to drive a real browser against the full Docker stack. They require the app to be running.
+
+```bash
+# Start the app in test mode (skips Whisper worker and Google Drive)
+docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+
+# Install Playwright browsers (first time only)
+npx playwright install --with-deps chromium
+
+# Run E2E tests
+npm run test:e2e
+
+# Run E2E tests with interactive UI
+npm run test:e2e:ui
+
+# Stop the test stack when done
+docker compose -f docker-compose.yml -f docker-compose.ci.yml down
+```
+
+### Test structure
+
+```
+tests/
+├── global-setup.ts          # Creates test SQLite database before tests run
+├── setup.ts                 # Cleans database between tests
+├── helpers/
+│   ├── fixtures.ts          # Factory functions (createTestUser, createTestBook, etc.)
+│   ├── auth.ts              # Auth mocking helpers
+│   └── redis.ts             # Redis queue mock
+├── unit/
+│   └── lib/
+│       ├── utils.test.ts    # formatTimecode, formatDuration, version tags
+│       └── validations.test.ts  # Audio/image spec constants
+├── integration/
+│   └── api/
+│       ├── books.test.ts        # Book CRUD (14 tests)
+│       ├── chapters.test.ts     # Chapter CRUD + reorder (9 tests)
+│       ├── chapter-process.test.ts  # Audio processing pipeline (8 tests)
+│       └── book-export.test.ts  # M4B export validation + queuing (10 tests)
+└── e2e/
+    ├── fixtures/auth.ts     # Playwright auth fixture (seeds session cookie)
+    ├── smoke.spec.ts        # Health check + auth redirect
+    └── bookshelf.spec.ts    # Create book via UI
+```
+
+### CI
+
+Tests run automatically via GitHub Actions on push to `main` and on PRs. The pipeline has three jobs:
+
+1. **Lint & Type Check** — ESLint + `tsc --noEmit` (~45s)
+2. **Unit & Integration** — Vitest against an in-memory SQLite database (~90s)
+3. **E2E** — Playwright against the full Docker stack, with Whisper worker disabled (~3–5 min)
+
+If E2E tests fail, Playwright traces and Docker logs are uploaded as artifacts for debugging.
+
+---
+
 ## 📄 License
 
 MIT — made with ❤️ for families everywhere.
