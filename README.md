@@ -1,7 +1,7 @@
 # 🎙 Heirloom Audio
 
 [![Tests](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml)
-[![E2E](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml)
+[![E2E & Security](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml)
 
 > *Record, produce, and share audiobooks with the people you love.*
 
@@ -240,10 +240,11 @@ Tests run via two GitHub Actions workflows:
 1. **Lint & Type Check** — ESLint + `tsc --noEmit`
 2. **Unit & Integration** — Vitest against a test SQLite database
 
-**`e2e.yml`** — runs on PRs to `main`, releases, and manual trigger (~5 min):
-3. **E2E** — Playwright against the full Docker stack, with Docker layer + Playwright browser caching
+**`e2e.yml`** — runs on PRs to `main`, releases, and manual trigger:
+3. **Security Scan** — npm audit + Trivy (vulnerabilities, Dockerfile misconfigs, secret detection). Results upload to GitHub's Security tab under Code scanning alerts.
+4. **E2E Tests** — Playwright against the full Docker stack (~5 min)
 
-You can also trigger E2E manually from the Actions tab using the "Run workflow" button. If tests fail, Playwright traces and Docker logs are uploaded as artifacts for debugging.
+Security and E2E run in parallel so the security scan doesn't add to the total wall time. You can trigger both manually from the Actions tab using the "Run workflow" button. If tests fail, Playwright traces and Docker logs are uploaded as artifacts.
 
 ---
 
