@@ -1,7 +1,8 @@
 # 🎙 Heirloom Audio
 
 [![Tests](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml)
-[![E2E & Security](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml)
+[![E2E](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml)
+[![Security](https://github.com/drewdah/heirloom-audio/actions/workflows/security.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/security.yml)
 
 > *Record, produce, and share audiobooks with the people you love.*
 
@@ -161,7 +162,7 @@ npm run dev
 
 ## 🧪 Testing
 
-The project uses [Vitest](https://vitest.dev) for unit and integration tests and [Playwright](https://playwright.dev) for end-to-end browser tests.
+The project uses [Vitest](https://vitest.dev) for unit and integration tests, [Playwright](https://playwright.dev) for end-to-end browser tests, and [Trivy](https://trivy.dev) for security scanning.
 
 ### Running tests locally
 
@@ -203,6 +204,33 @@ npm run test:e2e:ui
 docker compose -f docker-compose.yml -f docker-compose.ci.yml down
 ```
 
+### Security scanning
+
+Security scans check for vulnerable dependencies (npm + Python), Dockerfile misconfigurations, and accidentally committed secrets. The same checks run in CI and can be run locally.
+
+```bash
+# Run all security scans (npm audit + Trivy)
+npm run security
+
+# Run only npm audit (no extra tools needed)
+npm run security:audit
+
+# Run only Trivy scan (requires Trivy)
+npm run security:trivy
+```
+
+Trivy needs to be installed separately:
+
+```bash
+# Ubuntu/WSL
+curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+# macOS
+brew install trivy
+```
+
+In CI, Trivy results are uploaded to GitHub's Security tab (Security > Code scanning alerts), giving you a persistent dashboard of findings across all runs.
+
 ### Test structure
 
 ```
@@ -234,17 +262,19 @@ tests/
 
 ### CI
 
-Tests run via two GitHub Actions workflows:
+Tests run via three GitHub Actions workflows:
 
 **`test.yml`** — runs on every push to `main` and on PRs (~2 min):
 1. **Lint & Type Check** — ESLint + `tsc --noEmit`
 2. **Unit & Integration** — Vitest against a test SQLite database
 
-**`e2e.yml`** — runs on PRs to `main`, releases, and manual trigger:
-3. **Security Scan** — npm audit + Trivy (vulnerabilities, Dockerfile misconfigs, secret detection). Results upload to GitHub's Security tab under Code scanning alerts.
-4. **E2E Tests** — Playwright against the full Docker stack (~5 min)
+**`security.yml`** — runs on every push to `main`, on PRs, and weekly on Mondays (~1 min):
+3. **Security Scan** — npm audit + Trivy (dependency vulnerabilities, Dockerfile misconfigs, secret detection). Results upload to GitHub's Security tab.
 
-Security and E2E run in parallel so the security scan doesn't add to the total wall time. You can trigger both manually from the Actions tab using the "Run workflow" button. If tests fail, Playwright traces and Docker logs are uploaded as artifacts.
+**`e2e.yml`** — runs on PRs to `main`, releases, and manual trigger (~5 min):
+4. **E2E Tests** — Playwright against the full Docker stack
+
+All workflows can be triggered manually from the Actions tab.
 
 ---
 

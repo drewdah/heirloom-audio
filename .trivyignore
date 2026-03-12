@@ -1,0 +1,6 @@
+# Trivy CVE ignore list
+# Add CVE IDs here to suppress specific findings you've reviewed and accepted.
+# Format: one CVE ID per line, with optional comment.
+#
+# Example:
+# CVE-2023-12345   # Accepted risk: only affects dev dependency, not exploitable in production

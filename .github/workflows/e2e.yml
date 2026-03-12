@@ -1,6 +1,6 @@
-name: E2E & Security
+name: E2E Tests
 
-# Runs on:
+# E2E tests run on:
 #  - Pull requests to main
 #  - Manual trigger (Run workflow button in Actions tab)
 #  - Release tags
@@ -23,78 +23,6 @@ env:
   GOOGLE_CLIENT_SECRET: "ci-fake-client-secret"
 
 jobs:
-  # ───────────────────────────────────────────────────────
-  # Security scans — runs in parallel with E2E
-  # ───────────────────────────────────────────────────────
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write  # Required to upload SARIF to GitHub Security tab
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - run: npm ci
-
-      # ── npm audit ──
-      # Checks package-lock.json against the GitHub Advisory Database.
-      # Fails on critical/high severity vulnerabilities.
-      - name: npm audit
-        run: npm audit --audit-level=high
-        continue-on-error: true  # Report but don't block — new CVEs appear daily
-
-      # ── Trivy filesystem scan ──
-      # Scans source code for:
-      #  - Vulnerable npm dependencies (package-lock.json)
-      #  - Vulnerable Python dependencies (whisper-worker/requirements.txt)
-      #  - Dockerfile misconfigurations
-      #  - Accidentally committed secrets (API keys, tokens, passwords)
-      - name: Trivy vulnerability + secret scan
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          scanners: "vuln,secret,misconfig"
-          severity: "CRITICAL,HIGH"
-          format: "sarif"
-          output: "trivy-results.sarif"
-          exit-code: "0"           # Don't fail the job — upload results for review
-          ignore-unfixed: true     # Skip CVEs with no available fix
-
-      # ── Upload to GitHub Security tab ──
-      # Results appear under Security > Code scanning alerts in your repo.
-      # This gives you a persistent, searchable dashboard of all findings.
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: "trivy-results.sarif"
-
-      # ── Summary in job log ──
-      # Also run Trivy in table format so results are visible directly
-      # in the GitHub Actions log without navigating to the Security tab.
-      - name: Trivy summary (table)
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          scanners: "vuln,secret"
-          severity: "CRITICAL,HIGH"
-          format: "table"
-          exit-code: "1"           # Fail on CRITICAL/HIGH so it shows as red
-          ignore-unfixed: true
-        continue-on-error: true    # But don't block the overall workflow
-
-  # ───────────────────────────────────────────────────────
-  # E2E tests — runs in parallel with security
-  # ───────────────────────────────────────────────────────
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
