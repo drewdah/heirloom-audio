@@ -1,5 +1,10 @@
 # docker-compose.ci.yml — override for CI
 # Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+#
+# Key differences from the default:
+#  - Replaces bind mounts with Docker volumes (avoids permission issues in CI)
+#  - Sets NODE_ENV=test so /api/test/seed endpoint is available
+#  - Disables Google Drive and Whisper worker
 
 services:
   app:
@@ -8,6 +13,16 @@ services:
       SKIP_DRIVE: "true"
       ALLOWED_EMAILS: ""
       WHISPER_ENABLED: "false"
+    # Override bind mounts with Docker-managed volumes.
+    # In CI, the host directories don't exist and Docker creates them as root,
+    # but the container runs as uid 1001 (nextjs) and can't write to them.
+    # Named volumes are owned by whatever uid first writes to them, which works.
+    volumes:
+      - ci-db:/data/db
+      - ci-uploads:/data/uploads
+      - ci-covers:/app/public/covers
+      - ci-takes:/app/public/takes
+      - ci-exports:/app/public/exports
     healthcheck:
       interval: 5s
       timeout: 5s
@@ -18,3 +33,10 @@ services:
       - whisper
     deploy:
       replicas: 0
+
+volumes:
+  ci-db:
+  ci-uploads:
+  ci-covers:
+  ci-takes:
+  ci-exports:
