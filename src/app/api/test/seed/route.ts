@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   // Optionally seed content data
   let bookId: string | null = null;
-  let chapterIds: string[] = [];
+  const chapterIds: string[] = [];
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   });
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE() {
   if (!isTestEnv()) {
     return NextResponse.json({ error: "Not available" }, { status: 404 });
   }
