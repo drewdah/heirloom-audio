@@ -1,6 +1,7 @@
 # 🎙 Heirloom Audio
 
 [![Tests](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml)
+[![E2E](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml)
 
 > *Record, produce, and share audiobooks with the people you love.*
 
@@ -160,7 +161,7 @@ npm run dev
 
 ## 🧪 Testing
 
-The project uses [Vitest](https://vitest.dev) for unit and integration tests and [Playwright](https://playwright.dev) for end-to-end browser tests. Tests run automatically on every push to `main` and on pull requests via GitHub Actions.
+The project uses [Vitest](https://vitest.dev) for unit and integration tests and [Playwright](https://playwright.dev) for end-to-end browser tests.
 
 ### Running tests locally
 
@@ -233,13 +234,16 @@ tests/
 
 ### CI
 
-Tests run automatically via GitHub Actions on push to `main` and on PRs. The pipeline has three jobs:
+Tests run via two GitHub Actions workflows:
 
-1. **Lint & Type Check** — ESLint + `tsc --noEmit` (~45s)
-2. **Unit & Integration** — Vitest against an in-memory SQLite database (~90s)
-3. **E2E** — Playwright against the full Docker stack, with Whisper worker disabled (~3–5 min)
+**`test.yml`** — runs on every push to `main` and on PRs (~2 min):
+1. **Lint & Type Check** — ESLint + `tsc --noEmit`
+2. **Unit & Integration** — Vitest against a test SQLite database
 
-If E2E tests fail, Playwright traces and Docker logs are uploaded as artifacts for debugging.
+**`e2e.yml`** — runs on PRs to `main`, releases, and manual trigger (~5 min):
+3. **E2E** — Playwright against the full Docker stack, with Docker layer + Playwright browser caching
+
+You can also trigger E2E manually from the Actions tab using the "Run workflow" button. If tests fail, Playwright traces and Docker logs are uploaded as artifacts for debugging.
 
 ---
 

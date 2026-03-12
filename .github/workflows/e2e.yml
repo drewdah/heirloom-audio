@@ -1,0 +1,126 @@
+name: E2E Tests
+
+# E2E tests are expensive (~5 min) because they build Docker images
+# and run a full browser. They run on:
+#  - Pull requests to main (catch regressions before merge)
+#  - Manual trigger (for ad-hoc testing)
+#  - Release tags (verify before publishing)
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Manual "Run workflow" button in GitHub Actions UI
+  release:
+    types: [created]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  NEXTAUTH_SECRET: "ci-test-secret-not-real"
+  NEXTAUTH_URL: "http://localhost:3000"
+  GOOGLE_CLIENT_ID: "ci-fake-client-id"
+  GOOGLE_CLIENT_SECRET: "ci-fake-client-secret"
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # ── Docker layer caching ──
+      # Caches the Docker build layers so subsequent runs with the same
+      # Dockerfile + package-lock.json + schema skip the slow npm ci + build.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-${{ runner.os }}-${{ hashFiles('Dockerfile', 'package-lock.json', 'prisma/schema.prisma') }}
+          restore-keys: |
+            docker-${{ runner.os }}-
+
+      - name: Build Docker images
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml build
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - name: Start services
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+        env:
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ env.NEXTAUTH_URL }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+
+      - name: Wait for app health check
+        run: |
+          echo "Waiting for app to be healthy..."
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "App is healthy after ${i}s"
+              break
+            fi
+            if [ $i -eq 90 ]; then
+              echo "App failed to start within 90s"
+              docker compose -f docker-compose.yml -f docker-compose.ci.yml logs
+              exit 1
+            fi
+            sleep 1
+          done
+
+      # ── Playwright browser caching ──
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      # ── Artifacts on failure ──
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Capture Docker logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml logs > /tmp/docker-logs.txt 2>&1
+
+      - name: Upload Docker logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: docker-logs
+          path: /tmp/docker-logs.txt
+          retention-days: 7
+
+      - name: Stop services
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
