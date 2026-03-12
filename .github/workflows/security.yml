@@ -44,11 +44,14 @@ jobs:
         run: npm audit --audit-level=high
         continue-on-error: true
 
-      # ── Install Trivy directly ──
-      # Avoids the trivy-action setup issues by installing the CLI ourselves.
+      # ── Install Trivy via apt ──
       - name: Install Trivy
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
 
       # ── Trivy scan (SARIF for GitHub Security tab) ──
       - name: Trivy vulnerability + secret scan (SARIF)
@@ -60,6 +63,7 @@ jobs:
             --output trivy-results.sarif \
             --ignore-unfixed \
             --skip-dirs .next,node_modules,.git,data \
+            --pkg-types os,library \
             --exit-code 0
 
       # ── Upload to GitHub Security tab ──
@@ -78,5 +82,6 @@ jobs:
             --format table \
             --ignore-unfixed \
             --skip-dirs .next,node_modules,.git,data \
+            --pkg-types os,library \
             --exit-code 1
         continue-on-error: true
