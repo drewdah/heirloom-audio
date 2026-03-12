@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
   NEXTAUTH_SECRET: "ci-test-secret-not-real"
   NEXTAUTH_URL: "http://localhost:3000"
   GOOGLE_CLIENT_ID: "ci-fake-client-id"
