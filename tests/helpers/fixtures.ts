@@ -40,7 +40,9 @@ export async function createTestTake(chapterId: string, overrides: Record<string
     data: {
       chapterId,
       label: "Take 1",
-      audioFileUrl: "/api/takes/test-take-abc123.webm",
+      // Use /takes/ prefix (not /api/takes/) to match the route code's
+      // .replace("/takes/", "") path extraction logic
+      audioFileUrl: "/takes/test-take-abc123.webm",
       durationSeconds: 10.5,
       regionStart: 0,
       regionEnd: 10.5,

@@ -47,7 +47,7 @@ describe("POST /api/books/[bookId]/export", () => {
   it("creates export record and queues job when ready", async () => {
     const b = await createTestBook(userId, { title: "The Bible" });
     const ch = await createTestChapter(b.id, { recordingComplete: true, processStatus: "done" });
-    await createTestTake(ch.id, { processedFileUrl: "/api/takes/proc.wav" });
+    await createTestTake(ch.id, { processedFileUrl: "/takes/proc.wav" });
     const { POST } = await import("@/app/api/books/[bookId]/export/route");
     const res = await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ bookId: b.id }) });
     expect(res.status).toBe(200);
@@ -79,7 +79,8 @@ describe("POST /api/books/[bookId]/export", () => {
   it("prefers processedFileUrl in job", async () => {
     const b = await createTestBook(userId);
     const ch = await createTestChapter(b.id, { recordingComplete: true, processStatus: "done" });
-    await createTestTake(ch.id, { audioFileUrl: "/api/takes/raw.webm", processedFileUrl: "/api/takes/processed.wav" });
+    // Route uses .replace("/takes/", "") so URLs must use /takes/ prefix
+    await createTestTake(ch.id, { audioFileUrl: "/takes/raw.webm", processedFileUrl: "/takes/processed.wav" });
     const { POST } = await import("@/app/api/books/[bookId]/export/route");
     await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ bookId: b.id }) });
     const job = JSON.parse(redisPushed.jobs[0]);
@@ -90,7 +91,7 @@ describe("POST /api/books/[bookId]/export", () => {
   it("falls back to raw audioFileUrl", async () => {
     const b = await createTestBook(userId);
     const ch = await createTestChapter(b.id, { recordingComplete: true, processStatus: "done" });
-    await createTestTake(ch.id, { audioFileUrl: "/api/takes/raw.webm", processedFileUrl: null });
+    await createTestTake(ch.id, { audioFileUrl: "/takes/raw.webm", processedFileUrl: null });
     const { POST } = await import("@/app/api/books/[bookId]/export/route");
     await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ bookId: b.id }) });
     const job = JSON.parse(redisPushed.jobs[0]);

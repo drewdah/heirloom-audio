@@ -30,7 +30,8 @@ describe("POST /api/chapters/[chapterId]/process", () => {
 
   it("queues a processing job with correct take paths", async () => {
     const ch = await createTestChapter(bookId);
-    await createTestTake(ch.id, { audioFileUrl: "/api/takes/take-abc123.webm", durationSeconds: 15, regionStart: 0, regionEnd: 15 });
+    // Route uses .replace("/takes/", "") so URL must start with /takes/
+    await createTestTake(ch.id, { audioFileUrl: "/takes/take-abc123.webm", durationSeconds: 15, regionStart: 0, regionEnd: 15 });
     const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
     const res = await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) });
     expect(res.status).toBe(200);
@@ -43,8 +44,8 @@ describe("POST /api/chapters/[chapterId]/process", () => {
 
   it("handles multiple takes ordered by regionStart", async () => {
     const ch = await createTestChapter(bookId);
-    await createTestTake(ch.id, { label: "T2", audioFileUrl: "/api/takes/second.webm", regionStart: 10, regionEnd: 20, durationSeconds: 10 });
-    await createTestTake(ch.id, { label: "T1", audioFileUrl: "/api/takes/first.webm", regionStart: 0, regionEnd: 10, durationSeconds: 10 });
+    await createTestTake(ch.id, { label: "T2", audioFileUrl: "/takes/second.webm", regionStart: 10, regionEnd: 20, durationSeconds: 10 });
+    await createTestTake(ch.id, { label: "T1", audioFileUrl: "/takes/first.webm", regionStart: 0, regionEnd: 10, durationSeconds: 10 });
     const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
     const res = await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) });
     expect(res.status).toBe(200);
@@ -92,13 +93,14 @@ describe("GET /api/chapters/[chapterId]/process", () => {
 
   it("returns current processing status", async () => {
     const ch = await createTestChapter(bookId, { processStatus: "processing" });
-    await createTestTake(ch.id, { processedFileUrl: "/api/takes/processed.wav" });
+    // processedFileUrl is stored as-is (not parsed by the GET route), so any format works here
+    await createTestTake(ch.id, { processedFileUrl: "/takes/processed.wav" });
     const { GET } = await import("@/app/api/chapters/[chapterId]/process/route");
     const res = await GET(new Request("http://localhost") as any, { params: Promise.resolve({ chapterId: ch.id }) });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.chapter.processStatus).toBe("processing");
-    expect(body.chapter.takes[0].processedFileUrl).toBe("/api/takes/processed.wav");
+    expect(body.chapter.takes[0].processedFileUrl).toBe("/takes/processed.wav");
   });
 
   it("returns 404 for nonexistent chapter", async () => {
