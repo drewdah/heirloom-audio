@@ -60,7 +60,7 @@ export default async function StatusBar({ userId }: StatusBarProps) {
                 <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)", fontFamily: "var(--font-sans)", minWidth: "36px" }}>{pct}%</span>
               </div>
             )}
-            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", opacity: 0.4, fontFamily: "var(--font-sans)" }}>v0.1</span>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", opacity: 0.4, fontFamily: "var(--font-sans)" }}>v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           </div>
 
         </div>
