@@ -1,0 +1,29 @@
+# Repository settings applied by the GitHub Settings app.
+# Install it at: https://github.com/apps/settings
+#
+# Changes here are applied automatically when merged to the default branch.
+
+repository:
+  # Show "Update branch" button on PRs that are behind main
+  allow_update_branch: true
+
+branches:
+  - name: main
+    protection:
+      # Require passing status checks before merging
+      required_status_checks:
+        strict: true  # Branch must be up to date with main before merging
+        contexts:
+          - "Lint & Type Check"
+          - "Unit & Integration Tests"
+
+      # Require a pull request (no direct pushes to main)
+      required_pull_request_reviews:
+        required_approving_review_count: 0  # Bump to 1 when you have collaborators
+        dismiss_stale_reviews: true
+
+      # Apply rules to admins too
+      enforce_admins: true
+
+      # No user/team push restrictions
+      restrictions: null
