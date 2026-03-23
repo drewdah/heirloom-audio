@@ -30,7 +30,7 @@ describe("POST /api/chapters/[chapterId]/process", () => {
 
   it("queues a processing job with correct take paths", async () => {
     const ch = await createTestChapter(bookId);
-    // Route uses .replace("/takes/", "") so URL must start with /takes/
+    // Route uses .split("/").pop() so any URL prefix works
     await createTestTake(ch.id, { audioFileUrl: "/takes/take-abc123.webm", durationSeconds: 15, regionStart: 0, regionEnd: 15 });
     const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
     const res = await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) });

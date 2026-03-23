@@ -40,8 +40,8 @@ export async function createTestTake(chapterId: string, overrides: Record<string
     data: {
       chapterId,
       label: "Take 1",
-      // Use /takes/ prefix (not /api/takes/) to match the route code's
-      // .replace("/takes/", "") path extraction logic
+      // Use /takes/ prefix — routes use .split("/").pop() so any format works,
+      // but this mirrors what the recording API writes today.
       audioFileUrl: "/takes/test-take-abc123.webm",
       durationSeconds: 10.5,
       regionStart: 0,
