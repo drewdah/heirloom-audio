@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Play, Pause, RotateCcw, Mic, Square, Loader2, X, ZoomIn, ZoomOut,
+  Play, Pause, RotateCcw, Mic, Square, Loader2, X, ZoomIn, ZoomOut, Upload,
 } from "lucide-react";
 import { formatDuration, formatTimecode } from "@/lib/utils";
 import VUMeter from "@/components/studio/VUMeter";
@@ -87,6 +87,7 @@ export default function ChapterTimeline({
   const [cursorSec, setCursorSec] = useState<number | null>(null); // hover position
   const [pendingStartSec, setPendingStartSec] = useState<number | null>(null); // click-to-record marker
   const [recState, setRecState] = useState<"idle" | "recording" | "uploading">("idle");
+  const [hoveredClipId, setHoveredClipId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [recError, setRecError] = useState<string | null>(null);
@@ -109,6 +110,7 @@ export default function ChapterTimeline({
   useEffect(() => { pxPerSecRef.current = pxPerSec; }, [pxPerSec]);
   const gainNodeRef = useRef<GainNode | null>(null); // live mic gain during recording
   const gainAnalyserRef = useRef<AnalyserNode | null>(null); // tapped after gain node for inline meter
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   // Audio nodes for multi-clip playback
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -403,6 +405,79 @@ export default function ChapterTimeline({
     pollTimersRef.current.forEach(t => clearInterval(t));
   }, []);
 
+  // ── Upload audio file ───────────────────────────────────────────────────
+  const uploadAudioFile = useCallback(async (file: File) => {
+    setRecError(null);
+    const start = pendingStartRef.current ?? (clips.length > 0 ? Math.max(...clips.map(c => c.regionEnd)) : 0);
+
+    // Resolve duration from file metadata before uploading.
+    // WebM files from MediaRecorder often report Infinity for duration — fall back to decodeAudioData.
+    let duration: number;
+    try {
+      duration = await new Promise<number>((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const audio = new Audio();
+        audio.addEventListener("loadedmetadata", () => {
+          URL.revokeObjectURL(url);
+          if (isFinite(audio.duration) && audio.duration > 0) {
+            resolve(audio.duration);
+          } else {
+            // Duration not in container headers — decode the full buffer to measure it
+            file.arrayBuffer().then(buf => {
+              const ctx = new AudioContext();
+              ctx.decodeAudioData(buf,
+                (decoded) => { ctx.close(); resolve(decoded.duration); },
+                (err) => { ctx.close(); reject(err); }
+              );
+            }).catch(reject);
+          }
+        });
+        audio.addEventListener("error", () => { URL.revokeObjectURL(url); reject(new Error("Could not read file duration")); });
+        audio.src = url;
+      });
+    } catch {
+      setRecError("Could not read audio file duration.");
+      return;
+    }
+
+    const regionEnd = start + duration;
+    setRecState("uploading");
+    try {
+      const fd = new FormData();
+      fd.append("audio", file);
+      fd.append("duration", String(duration));
+      fd.append("regionStart", String(start));
+      fd.append("regionEnd", String(regionEnd));
+
+      const res = await fetch(`/api/chapters/${chapterId}/takes`, { method: "POST", body: fd });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
+      const { take } = await res.json();
+
+      const newClip: Clip = {
+        ...take,
+        regionStart: take.regionStart ?? start,
+        regionEnd: take.regionEnd ?? regionEnd,
+        fileOffset: take.fileOffset ?? 0,
+        fileSizeBytes: take.fileSizeBytes ?? null,
+        transcript: take.transcript ?? null,
+        transcriptStatus: take.transcriptStatus ?? "pending",
+        processedFileUrl: take.processedFileUrl ?? null,
+      };
+
+      fetch(`/api/takes/${take.id}/transcribe`, { method: "POST" })
+        .then(() => startPollingTranscript(take.id))
+        .catch(() => {});
+      setClips(prev => [...prev, newClip].sort((a, b) => a.regionStart - b.regionStart));
+      onTakeAdded?.();
+      setPendingStartSec(null);
+      pendingStartRef.current = null;
+    } catch (err) {
+      setRecError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setRecState("idle");
+    }
+  }, [chapterId, clips, startPollingTranscript, onTakeAdded]);
+
   // ── Delete clip ────────────────────────────────────────────────────────
   const deleteClip = (clipId: string) => {
     setClips(prev => prev.filter(c => c.id !== clipId));
@@ -667,6 +742,7 @@ export default function ChapterTimeline({
                 onMove={moveClip}
                 onTrim={trimClip}
                 locked={locked}
+                externalHighlight={hoveredClipId === clip.id}
               />
             ))}
 
@@ -745,6 +821,14 @@ export default function ChapterTimeline({
                   <X className="w-3.5 h-3.5" />
                 </button>
                 <button
+                  onClick={() => !wouldOverlap(pendingStartSec) && uploadInputRef.current?.click()}
+                  disabled={wouldOverlap(pendingStartSec)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold flex-shrink-0 disabled:opacity-40"
+                  style={{ background: "var(--bg-raised)", border: "1px solid var(--border-default)", color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}>
+                  <Upload className="w-4 h-4" />
+                  Upload Here
+                </button>
+                <button
                   onClick={() => !wouldOverlap(pendingStartSec) && startRecording(pendingStartSec)}
                   disabled={wouldOverlap(pendingStartSec)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
@@ -761,6 +845,13 @@ export default function ChapterTimeline({
                     ? "Click anywhere on the timeline or press Record to start"
                     : `Click the timeline to choose a start point, or continue from ${formatDuration(Math.floor(totalRecordedEnd))}`}
                 </span>
+                <button
+                  onClick={() => uploadInputRef.current?.click()}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold flex-shrink-0"
+                  style={{ background: "var(--bg-raised)", border: "1px solid var(--border-default)", color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}>
+                  <Upload className="w-4 h-4" />
+                  Upload Audio
+                </button>
                 <button
                   onClick={() => startRecording(totalRecordedEnd)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold flex-shrink-0"
@@ -814,10 +905,22 @@ export default function ChapterTimeline({
             <p className="text-xs" style={{ color: "var(--red)" }}>{recError}</p>
           </div>
         )}
+
+        {/* Hidden file input for audio upload */}
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="audio/wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/webm,audio/aac"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) { e.target.value = ""; uploadAudioFile(f); }
+          }}
+        />
       </div>
 
       {/* ── Clip list with transcripts ────────────────────────────────── */}
-      <ClipList clips={clips} />
+      <ClipList clips={clips} onDelete={deleteClip} onHoverClip={setHoveredClipId} />
     </div>
   );
 }
@@ -836,12 +939,13 @@ interface ClipBlockProps {
   onMove: (id: string, newStart: number) => boolean;   // returns false if blocked
   onTrim: (id: string, newStart: number, newDuration: number, newFileOffset: number) => boolean;
   locked?: boolean;
+  externalHighlight?: boolean;
 }
 
 const CLIP_INSET = 6;
 const EDGE_ZONE = 8; // px — width of trim handle on each edge
 
-function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTrim, locked = false }: ClipBlockProps) {
+function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTrim, locked = false, externalHighlight = false }: ClipBlockProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wsRef = useRef<any>(null);
@@ -1021,8 +1125,8 @@ function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTri
         top: CLIP_INSET,
         height: clipH,
         background: color.bg,
-        border: `1px solid ${isHovered ? color.border : color.border + "88"}`,
-        boxShadow: isHovered ? `0 0 12px ${color.border}44` : "none",
+        border: `1px solid ${(isHovered || externalHighlight) ? color.border : color.border + "88"}`,
+        boxShadow: (isHovered || externalHighlight) ? `0 0 12px ${color.border}44` : "none",
         transition: dragRef.current ? 'none' : 'border-color 0.15s, box-shadow 0.15s',
         cursor: locked ? 'default' : cursor,
         zIndex: dragRef.current ? 10 : 5,
