@@ -79,13 +79,24 @@ describe("POST /api/books/[bookId]/export", () => {
   it("prefers processedFileUrl in job", async () => {
     const b = await createTestBook(userId);
     const ch = await createTestChapter(b.id, { recordingComplete: true, processStatus: "done" });
-    // Route uses .replace("/takes/", "") so URLs must use /takes/ prefix
+    // Route uses .split("/").pop() so any URL prefix works
     await createTestTake(ch.id, { audioFileUrl: "/takes/raw.webm", processedFileUrl: "/takes/processed.wav" });
     const { POST } = await import("@/app/api/books/[bookId]/export/route");
     await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ bookId: b.id }) });
     const job = JSON.parse(redisPushed.jobs[0]);
     expect(job.chapters[0].takes[0].filePath).toBe("/app/public/takes/processed.wav");
     expect(job.chapters[0].takes[0].isProcessed).toBe(true);
+  });
+
+  it("handles /api/takes/ prefixed processedFileUrl (legacy format)", async () => {
+    const b = await createTestBook(userId);
+    const ch = await createTestChapter(b.id, { recordingComplete: true, processStatus: "done" });
+    // Older worker versions stored processedFileUrl as "/api/takes/xxx_processed.wav"
+    await createTestTake(ch.id, { audioFileUrl: "/takes/raw.webm", processedFileUrl: "/api/takes/processed.wav" });
+    const { POST } = await import("@/app/api/books/[bookId]/export/route");
+    await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ bookId: b.id }) });
+    const job = JSON.parse(redisPushed.jobs[0]);
+    expect(job.chapters[0].takes[0].filePath).toBe("/app/public/takes/processed.wav");
   });
 
   it("falls back to raw audioFileUrl", async () => {

@@ -98,7 +98,7 @@ export default function DriveStatus() {
               {reconnecting ? "Redirecting to Google…" : "Reconnect Google Drive"}
             </button>
             <p className="text-center mt-2" style={{ fontSize: "0.6rem", color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
-              You won't be signed out — just re-authorise Drive access.
+              You won&apos;t be signed out — just re-authorise Drive access.
             </p>
           </div>
         </>
