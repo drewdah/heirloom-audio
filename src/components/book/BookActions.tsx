@@ -37,14 +37,19 @@ interface BookActionsProps {
 export default function BookActions({ bookId, bookTitle, hasDriveFolder, book, chapters }: BookActionsProps) {
   const [showDelete, setShowDelete] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [deleteHovered, setDeleteHovered] = useState(false);
+
+  const canExport = chapters.some(c => c.recordingComplete || c.processStatus === "done");
 
   return (
     <>
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setShowExport(true)}
+          onClick={() => canExport && setShowExport(true)}
+          disabled={!canExport}
+          title={!canExport ? "Record at least one chapter before exporting" : undefined}
           className="ha-btn-primary flex items-center gap-1.5 text-sm"
-          style={{ padding: "0.4rem 0.875rem" }}>
+          style={{ padding: "0.4rem 0.875rem", opacity: canExport ? 1 : 0.4, cursor: canExport ? "pointer" : "not-allowed" }}>
           <Package className="w-3.5 h-3.5" />
           Export M4B
         </button>
@@ -57,11 +62,13 @@ export default function BookActions({ bookId, bookTitle, hasDriveFolder, book, c
         </Link>
         <button
           onClick={() => setShowDelete(true)}
+          onMouseEnter={() => setDeleteHovered(true)}
+          onMouseLeave={() => setDeleteHovered(false)}
           className="flex items-center gap-1.5 text-sm rounded-lg transition-colors"
           style={{
             padding: "0.4rem 0.875rem",
-            color: "var(--text-tertiary)",
-            border: "1px solid var(--border-subtle)",
+            color: deleteHovered ? "#ef4444" : "var(--text-tertiary)",
+            border: `1px solid ${deleteHovered ? "rgba(239,68,68,0.4)" : "var(--border-subtle)"}`,
           }}>
           <Trash2 className="w-3.5 h-3.5" />
           Delete

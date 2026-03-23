@@ -1,4 +1,6 @@
 "use client";
+import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 
 // Must stay in sync with the Clip interface in ChapterTimeline.tsx
@@ -41,9 +43,13 @@ function formatDateTime(iso: string): string {
 
 interface ClipListProps {
   clips: Clip[];
+  onDelete?: (id: string) => void;
+  onHoverClip?: (id: string | null) => void;
 }
 
-export default function ClipList({ clips }: ClipListProps) {
+export default function ClipList({ clips, onDelete, onHoverClip }: ClipListProps) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   if (clips.length === 0) return null;
 
   return (
@@ -85,8 +91,10 @@ export default function ClipList({ clips }: ClipListProps) {
               key={clip.id}
               className="px-4 py-3 flex flex-col gap-2"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
+              onMouseEnter={() => onHoverClip?.(clip.id)}
+              onMouseLeave={() => onHoverClip?.(null)}
             >
-              {/* Top row: color swatch + label + meta */}
+              {/* Top row: color swatch + label + meta + delete */}
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Color swatch */}
                 <div
@@ -115,6 +123,34 @@ export default function ClipList({ clips }: ClipListProps) {
 
                   {/* Recorded at */}
                   <MetaChip label="Recorded" value={formatDateTime(clip.recordedAt)} />
+
+                  {/* Delete */}
+                  {onDelete && (
+                    confirmDeleteId === clip.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => { onDelete(clip.id); setConfirmDeleteId(null); }}
+                          className="px-2 py-0.5 rounded text-xs font-medium"
+                          style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.4)", color: "#ef4444", fontFamily: "var(--font-sans)" }}>
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="px-2 py-0.5 rounded text-xs"
+                          style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(clip.id)}
+                        className="p-1 rounded transition-colors"
+                        style={{ color: "var(--text-tertiary)" }}
+                        title="Delete take">
+                        <Trash2 style={{ width: 13, height: 13 }} />
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 

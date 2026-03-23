@@ -9,6 +9,7 @@ import { formatDuration } from "@/lib/utils";
 import ChapterList from "@/components/book/ChapterList";
 import BookCover3D from "@/components/book/BookCover3D";
 import BookActions from "@/components/book/BookActions";
+import BookStatusBar from "@/components/book/BookStatusBar";
 
 export default async function BookPage({ params }: { params: Promise<{ bookId: string }> }) {
   const { bookId } = await params;
@@ -30,6 +31,13 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
   const totalSeconds = book.chapters.reduce((s, c) => s + (c.durationSeconds ?? 0), 0);
 
   return (
+    <>
+    <BookStatusBar
+      bookTitle={book.title}
+      totalChapters={book.chapters.length}
+      recordedChapters={recordedChapters}
+      completedChapters={completedChapters}
+    />
     <div className="page-enter max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <Link href="/shelf"
         className="inline-flex items-center gap-1.5 text-sm mb-8 transition-colors"
@@ -164,5 +172,6 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
         )}
       </div>
     </div>
+    </>
   );
 }
