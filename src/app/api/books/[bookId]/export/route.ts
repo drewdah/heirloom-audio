@@ -88,10 +88,11 @@ export async function POST(
       order: c.order,
       takes: activeTakes.map((t) => ({
         takeId: t.id,
-        // Prefer processed file, fall back to raw
+        // Prefer processed file, fall back to raw.
+        // Use basename only — stored URLs may have /takes/ or /api/takes/ prefix depending on version.
         filePath: t.processedFileUrl
-          ? `/app/public/takes/${t.processedFileUrl.replace("/takes/", "")}`
-          : `/app/public/takes/${t.audioFileUrl!.replace("/takes/", "")}`,
+          ? `/app/public/takes/${t.processedFileUrl.split("/").pop()}`
+          : `/app/public/takes/${t.audioFileUrl!.split("/").pop()}`,
         regionStart: t.regionStart ?? 0,
         regionEnd: t.regionEnd ?? (t.regionStart ?? 0) + (t.durationSeconds ?? 0),
         fileOffset: t.fileOffset ?? 0,

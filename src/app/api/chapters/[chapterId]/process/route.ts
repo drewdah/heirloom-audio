@@ -41,8 +41,7 @@ export async function POST(
     .filter((t) => t.audioFileUrl)
     .map((t) => ({
       takeId: t.id,
-      // Convert local URL /takes/xxx.webm → container path /app/public/takes/xxx.webm
-      filePath: `/app/public/takes/${t.audioFileUrl!.replace("/takes/", "")}`,
+      filePath: `/app/public/takes/${t.audioFileUrl!.split("/").pop()}`,
       regionStart: t.regionStart ?? 0,
       regionEnd: t.regionEnd ?? (t.regionStart ?? 0) + (t.durationSeconds ?? 0),
       fileOffset: t.fileOffset ?? 0,

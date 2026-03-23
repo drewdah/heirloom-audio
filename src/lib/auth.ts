@@ -23,10 +23,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
-      if (allowedEmails.length === 0) return true;
-      const email = user.email?.toLowerCase() ?? "";
-      return allowedEmails.includes(email);
+    async signIn({ user, account }) {
+      // Email allowlist
+      if (allowedEmails.length > 0) {
+        const email = user.email?.toLowerCase() ?? "";
+        if (!allowedEmails.includes(email)) return false;
+      }
+
+      // Refresh stored OAuth tokens on every sign-in.
+      // NextAuth's PrismaAdapter only writes tokens once (on linkAccount) and never
+      // updates them on subsequent sign-ins, so access/refresh tokens go stale.
+      if (account?.provider === "google" && account.providerAccountId && account.access_token) {
+        try {
+          await prisma.account.updateMany({
+            where: { provider: "google", providerAccountId: account.providerAccountId },
+            data: {
+              access_token: account.access_token,
+              // Google only returns a new refresh_token when prompt=consent is shown;
+              // keep the existing one if absent rather than overwriting with null.
+              ...(account.refresh_token ? { refresh_token: account.refresh_token } : {}),
+              expires_at: account.expires_at ?? null,
+              scope: account.scope ?? undefined,
+            },
+          });
+        } catch (err) {
+          // Non-fatal — first sign-in may race with linkAccount; tokens will be correct anyway
+          console.warn("[auth] Failed to refresh stored OAuth tokens:", err);
+        }
+      }
+
+      return true;
     },
     async session({ session, user }) {
       // With database strategy, `user` is the DB user record

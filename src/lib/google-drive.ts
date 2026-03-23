@@ -212,6 +212,76 @@ export async function uploadCoverToDrive(
   return { fileId: res.data.id!, webContentLink: directUrl };
 }
 
+/** Upload the finished M4B export to an "exports" subfolder in the book's Drive folder */
+export async function uploadExportToDrive(
+  userId: string,
+  bookId: string,
+  fileName: string,
+  buffer: Buffer,
+): Promise<{ fileId: string }> {
+  const bookFolderId = await ensureBookFolder(userId, bookId);
+  const drive = await getDriveClient(userId);
+
+  // Ensure exports subfolder
+  const existing = await drive.files.list({
+    q: `'${bookFolderId}' in parents and name='exports' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: "files(id)",
+  });
+  let exportsFolderId: string;
+  if (existing.data.files?.length) {
+    exportsFolderId = existing.data.files[0].id!;
+  } else {
+    const res = await drive.files.create({
+      requestBody: { name: "exports", mimeType: "application/vnd.google-apps.folder", parents: [bookFolderId] },
+      fields: "id",
+    });
+    exportsFolderId = res.data.id!;
+  }
+
+  const res = await drive.files.create({
+    requestBody: { name: fileName, parents: [exportsFolderId] },
+    media: { mimeType: "audio/mp4", body: Readable.from(buffer) },
+    fields: "id",
+  });
+
+  return { fileId: res.data.id! };
+}
+
+/** Upload a processed take WAV to a "processed" subfolder in the book's chapters Drive folder */
+export async function uploadProcessedTakeToDrive(
+  userId: string,
+  bookId: string,
+  fileName: string,
+  buffer: Buffer,
+): Promise<{ fileId: string }> {
+  const chaptersFolderId = await ensureChaptersFolder(userId, bookId);
+  const drive = await getDriveClient(userId);
+
+  // Ensure processed subfolder inside chapters
+  const existing = await drive.files.list({
+    q: `'${chaptersFolderId}' in parents and name='processed' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: "files(id)",
+  });
+  let processedFolderId: string;
+  if (existing.data.files?.length) {
+    processedFolderId = existing.data.files[0].id!;
+  } else {
+    const res = await drive.files.create({
+      requestBody: { name: "processed", mimeType: "application/vnd.google-apps.folder", parents: [chaptersFolderId] },
+      fields: "id",
+    });
+    processedFolderId = res.data.id!;
+  }
+
+  const res = await drive.files.create({
+    requestBody: { name: fileName, parents: [processedFolderId] },
+    media: { mimeType: "audio/wav", body: Readable.from(buffer) },
+    fields: "id",
+  });
+
+  return { fileId: res.data.id! };
+}
+
 /** Delete a file from Drive (silently ignores errors) */
 export async function deleteDriveFile(userId: string, fileId: string): Promise<void> {
   const drive = await getDriveClient(userId).catch(() => null);

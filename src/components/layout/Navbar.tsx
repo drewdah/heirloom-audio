@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { PlusCircle, LogOut, User, SlidersHorizontal } from "lucide-react";
 import { signOut } from "next-auth/react";
 import AudioSettingsModal from "@/components/studio/AudioSettingsModal";
+import DriveStatus from "@/components/layout/DriveStatus";
 
 interface NavbarProps {
   user: {
@@ -117,6 +118,7 @@ export default function Navbar({ user }: NavbarProps) {
                 {user.name?.split(" ")[0] ?? user.email}
               </span>
             </div>
+            <DriveStatus />
             <button
               onClick={() => setAudioSettingsOpen(true)}
               className="p-2 rounded-lg transition-all"
