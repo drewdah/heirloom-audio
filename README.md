@@ -35,15 +35,19 @@ Heirloom Audio is a self-hosted web app for recording professional-quality M4B a
       <br/><sub><b>Personal bookshelf</b></sub>
     </td>
     <td align="center">
-      <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/book-chapters.png" target="_blank"><img src=".github/assets/book-chapters.png" width="280" alt="Book detail"/></a>
-      <br/><sub><b>Book detail & chapters</b></sub>
-    </td>
-    <td align="center">
       <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/add-book.png" target="_blank"><img src=".github/assets/add-book.png" width="280" alt="New book form"/></a>
       <br/><sub><b>New book setup</b></sub>
     </td>
+    <td align="center">
+      <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/add-chapters.png" target="_blank"><img src=".github/assets/add-chapters.png" width="280" alt="Add chapters"/></a>
+      <br/><sub><b>Add chapters</b></sub>
+    </td>
   </tr>
   <tr>
+    <td align="center">
+      <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/book-chapters.png" target="_blank"><img src=".github/assets/book-chapters.png" width="280" alt="Book detail"/></a>
+      <br/><sub><b>Book detail & chapters</b></sub>
+    </td>
     <td align="center">
       <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/chapter-recording.png" target="_blank"><img src=".github/assets/chapter-recording.png" width="280" alt="Recording studio"/></a>
       <br/><sub><b>Chapter recording studio</b></sub>
@@ -52,12 +56,12 @@ Heirloom Audio is a self-hosted web app for recording professional-quality M4B a
       <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/chapter-recording-transcription.png" target="_blank"><img src=".github/assets/chapter-recording-transcription.png" width="280" alt="Transcription"/></a>
       <br/><sub><b>Auto-transcription of takes</b></sub>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/audio-settings.png" target="_blank"><img src=".github/assets/audio-settings.png" width="280" alt="Audio settings"/></a>
       <br/><sub><b>Microphone & monitor settings</b></sub>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/export-modal.png" target="_blank"><img src=".github/assets/export-modal.png" width="280" alt="Export modal"/></a>
       <br/><sub><b>M4B export preview</b></sub>
@@ -66,7 +70,6 @@ Heirloom Audio is a self-hosted web app for recording professional-quality M4B a
       <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/export-complete.png" target="_blank"><img src=".github/assets/export-complete.png" width="280" alt="Export complete"/></a>
       <br/><sub><b>Export complete</b></sub>
     </td>
-    <td></td>
   </tr>
 </table>
 

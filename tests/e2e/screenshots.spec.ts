@@ -143,6 +143,22 @@ test("new book form", async ({ page, request }) => {
   await page.screenshot({ path: shot("add-book.png"), fullPage: true });
 });
 
+test("add chapters form", async ({ page, request }) => {
+  const seed = await seedContent(request, {
+    book: true,
+    bookTitle: "Dracula",
+    bookAuthor: "Bram Stoker",
+    coverImageUrl: coverDataUri("dracula.jpg"),
+  });
+
+  await page.goto(`/books/${seed.bookId}/chapters/new`);
+  await page.waitForLoadState("networkidle");
+  // Switch to Batch Create to show the fuller form with chapter preview
+  await page.click('button:has-text("Batch Create")');
+  await prepareScreenshot(page);
+  await page.screenshot({ path: shot("add-chapters.png"), fullPage: false });
+});
+
 test("recording studio", async ({ page, request }) => {
   const seed = await seedContent(request, {
     book: true,
