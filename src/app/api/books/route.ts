@@ -57,5 +57,12 @@ export async function POST(req: Request) {
     },
   });
 
+  // Eagerly create the Drive folder structure — fire-and-forget, non-fatal
+  import("@/lib/google-drive").then(({ ensureBookFolder }) =>
+    ensureBookFolder(session.user.id, book.id).catch((err) =>
+      console.warn("[book create] Drive folder creation failed (non-fatal):", err)
+    )
+  );
+
   return NextResponse.json(book, { status: 201 });
 }
