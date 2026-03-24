@@ -39,14 +39,14 @@ Heirloom Audio is a self-hosted web app for recording professional-quality M4B a
       <br/><sub><b>New book setup</b></sub>
     </td>
     <td align="center">
-      <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/add-chapters.png" target="_blank"><img src=".github/assets/add-chapters.png" width="280" alt="Add chapters"/></a>
-      <br/><sub><b>Add chapters</b></sub>
+      <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/book-chapters.png" target="_blank"><img src=".github/assets/book-chapters.png" width="280" alt="Book detail"/></a>
+      <br/><sub><b>Book detail & chapters</b></sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/book-chapters.png" target="_blank"><img src=".github/assets/book-chapters.png" width="280" alt="Book detail"/></a>
-      <br/><sub><b>Book detail & chapters</b></sub>
+      <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/add-chapters.png" target="_blank"><img src=".github/assets/add-chapters.png" width="280" alt="Add chapters"/></a>
+      <br/><sub><b>Add chapters</b></sub>
     </td>
     <td align="center">
       <a href="https://raw.githubusercontent.com/drewdah/heirloom-audio/refs/heads/main/.github/assets/chapter-recording.png" target="_blank"><img src=".github/assets/chapter-recording.png" width="280" alt="Recording studio"/></a>
