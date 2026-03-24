@@ -22,10 +22,12 @@ test.describe("Export", () => {
   });
 
   test("export modal shows incomplete chapter warnings", async ({ page, request }) => {
+    // 1 completed chapter enables the button; 1 incomplete triggers the warning in the modal
     const seed = await seedContent(request, {
       book: true,
       bookTitle: "Bible",
       chapters: 2,
+      completedChapters: 1,
     });
 
     await page.goto(`/books/${seed.bookId}`);
@@ -36,9 +38,11 @@ test.describe("Export", () => {
   });
 
   test("export modal can be closed", async ({ page, request }) => {
+    // Need at least one completed chapter so the Export button is enabled
     const seed = await seedContent(request, {
       book: true,
       chapters: 1,
+      completedChapters: 1,
     });
 
     await page.goto(`/books/${seed.bookId}`);

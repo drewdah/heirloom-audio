@@ -87,6 +87,7 @@ export async function seedContent(
     bookTitle?: string;
     bookAuthor?: string;
     chapters?: number;
+    completedChapters?: number;
     groupTitle?: string;
     take?: boolean;
   } = {}
