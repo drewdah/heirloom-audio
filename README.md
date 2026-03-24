@@ -1,4 +1,4 @@
-# Heirloom Audio
+# 🎙 Heirloom Audio
 
 [![Unit + Integration Tests](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml)
 [![E2E](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/e2e.yml)
