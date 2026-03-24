@@ -65,6 +65,15 @@ export async function PUT(
     data: parsed.data,
   });
 
+  // Rename Drive folder if title changed — fire-and-forget, non-fatal
+  if (parsed.data.title && parsed.data.title !== book.title) {
+    import("@/lib/google-drive").then(({ renameBookFolder }) =>
+      renameBookFolder(session.user!.id, bookId, parsed.data.title!).catch((err) =>
+        console.warn("[book update] Drive folder rename failed (non-fatal):", err)
+      )
+    );
+  }
+
   return NextResponse.json(updated);
 }
 

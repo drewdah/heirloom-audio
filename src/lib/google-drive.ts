@@ -282,6 +282,18 @@ export async function uploadProcessedTakeToDrive(
   return { fileId: res.data.id! };
 }
 
+/** Rename a book's Drive folder to match a new book title (non-fatal) */
+export async function renameBookFolder(userId: string, bookId: string, newTitle: string): Promise<void> {
+  const book = await prisma.book.findUnique({ where: { id: bookId } });
+  if (!book?.driveFolderId) return;
+  const drive = await getDriveClient(userId);
+  const shortId = bookId.slice(-6).toUpperCase();
+  await drive.files.update({
+    fileId: book.driveFolderId,
+    requestBody: { name: `${newTitle} [${shortId}]` },
+  }).catch(() => {});
+}
+
 /** Delete a file from Drive (silently ignores errors) */
 export async function deleteDriveFile(userId: string, fileId: string): Promise<void> {
   const drive = await getDriveClient(userId).catch(() => null);
