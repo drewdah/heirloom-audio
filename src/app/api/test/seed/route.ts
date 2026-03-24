@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
             title: `Chapter ${i}`,
             groupTitle: body.groupTitle ?? null,
             recordingComplete: i <= numCompleted,
-            processStatus: i <= numProcessed ? "done" : null,
+            processStatus: i <= numProcessed ? "done" : undefined,
           },
         });
         chapterIds.push(ch.id);
