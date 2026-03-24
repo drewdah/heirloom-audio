@@ -91,6 +91,7 @@ export async function seedContent(
     processedChapters?: number;
     groupTitle?: string;
     take?: boolean;
+    takeTranscript?: string;
     coverImageUrl?: string | null;
   } = {}
 ): Promise<SeedData> {
