@@ -99,6 +99,8 @@ export async function POST(req: NextRequest) {
               regionStart: 0,
               regionEnd: 10,
               isActive: true,
+              transcript: body.takeTranscript ?? null,
+              transcriptStatus: body.takeTranscript ? "done" : "pending",
             },
           });
         }

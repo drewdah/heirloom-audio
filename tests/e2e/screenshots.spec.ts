@@ -16,6 +16,34 @@ import path from "path";
 import { test } from "./fixtures/auth";
 import { seedContent } from "./fixtures/auth";
 
+/**
+ * Generate a minimal WAV buffer containing a simple sine wave.
+ * Used to serve fake audio so WaveSurfer renders a real waveform
+ * instead of the "no preview" error state.
+ */
+function makeWav(durationSecs: number = 10): Buffer {
+  const sampleRate = 8000;
+  const numSamples = sampleRate * durationSecs;
+  const buf = Buffer.alloc(44 + numSamples);
+  buf.write("RIFF", 0);
+  buf.writeUInt32LE(36 + numSamples, 4);
+  buf.write("WAVE", 8);
+  buf.write("fmt ", 12);
+  buf.writeUInt32LE(16, 16);
+  buf.writeUInt16LE(1, 20); // PCM
+  buf.writeUInt16LE(1, 22); // mono
+  buf.writeUInt32LE(sampleRate, 24);
+  buf.writeUInt32LE(sampleRate, 28);
+  buf.writeUInt16LE(1, 32);
+  buf.writeUInt16LE(8, 34); // 8-bit
+  buf.write("data", 36);
+  buf.writeUInt32LE(numSamples, 40);
+  for (let i = 0; i < numSamples; i++) {
+    buf[44 + i] = 128 + Math.round(55 * Math.sin(2 * Math.PI * 3 * i / sampleRate));
+  }
+  return buf;
+}
+
 const ASSETS = path.resolve(process.cwd(), ".github/assets");
 const shot = (name: string) => path.join(ASSETS, name);
 
@@ -53,6 +81,9 @@ async function prepareScreenshot(page: import("@playwright/test").Page) {
   );
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await page.evaluate(() => {
+    // Make body the containing block so absolute-positioned bars anchor to the
+    // actual page bottom (not the viewport) in fullPage screenshots.
+    document.body.style.position = "relative";
     document.querySelectorAll<HTMLElement>(".fixed.bottom-0.left-0.right-0").forEach((el) => {
       el.style.position = "absolute";
       el.style.bottom = "0";
@@ -136,11 +167,25 @@ test("recording studio with transcription", async ({ page, request }) => {
     bookAuthor: "Mark Twain",
     chapters: 1,
     take: true,
+    takeTranscript: "You don't know about me without you have read a book by the name of The Adventures of Tom Sawyer; but that ain't no matter. That book was made by Mr. Mark Twain, and he told the truth, mainly.",
     coverImageUrl: coverDataUri("huckleberry-finn.jpg"),
+  });
+
+  // Serve a minimal WAV so WaveSurfer renders a real waveform instead of "no preview"
+  const wavBuf = makeWav(10);
+  await page.route("/takes/**", (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: "audio/wav",
+      body: wavBuf,
+      headers: { "Accept-Ranges": "bytes", "Content-Length": String(wavBuf.length) },
+    });
   });
 
   await page.goto(`/books/${seed.bookId}/chapters/${seed.chapterIds[0]}`);
   await page.waitForLoadState("networkidle");
+  // Wait for WaveSurfer to finish loading
+  await page.waitForTimeout(1000);
   await prepareScreenshot(page);
   await page.screenshot({ path: shot("chapter-recording-transcription.png"), fullPage: true });
 });
