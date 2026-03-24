@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="public/images/header_logo.png" alt="Heirloom Audio" width="600" />
-</p>
-
 # Heirloom Audio
 
 [![Unit + Integration Tests](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml/badge.svg)](https://github.com/drewdah/heirloom-audio/actions/workflows/test.yml)
@@ -11,6 +7,10 @@
 > *Record, produce, and share audiobooks with the people you love.*
 
 Heirloom Audio is a self-hosted web app for recording professional-quality M4B audiobooks.
+
+<p align="center">
+  <img src="public/images/header_logo.png" alt="Heirloom Audio" width="600" />
+</p>
 
 ---
 
