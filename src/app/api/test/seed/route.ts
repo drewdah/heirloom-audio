@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
           author: body.bookAuthor ?? "Test Author",
           language: "en",
           versionTag: "v1-test",
+          coverImageUrl: body.coverImageUrl ?? null,
         },
       });
       bookId = book.id;

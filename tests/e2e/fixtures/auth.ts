@@ -90,6 +90,7 @@ export async function seedContent(
     completedChapters?: number;
     groupTitle?: string;
     take?: boolean;
+    coverImageUrl?: string | null;
   } = {}
 ): Promise<SeedData> {
   await request.delete("/api/test/seed");

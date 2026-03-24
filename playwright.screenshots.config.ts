@@ -13,11 +13,18 @@ export default defineConfig({
   workers: 1,
 
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
+    baseURL: "http://localhost:3001",
     viewport: { width: 1440, height: 900 },
     trace: "off",
     screenshot: "off",
     video: "off",
+  },
+
+  webServer: {
+    command: "ENABLE_TEST_SEED=true next dev --turbopack -H 0.0.0.0 --port 3001",
+    url: "http://localhost:3001",
+    reuseExistingServer: false,
+    timeout: 60_000,
   },
 
   projects: [
