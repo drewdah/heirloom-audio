@@ -134,7 +134,7 @@ export default function ExportModal({ bookId, book, chapters, onClose }: ExportM
         borderRadius: "12px",
         width: "100%",
         maxWidth: "560px",
-        maxHeight: "85vh",
+        maxHeight: "calc(90vh - 64px)",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
