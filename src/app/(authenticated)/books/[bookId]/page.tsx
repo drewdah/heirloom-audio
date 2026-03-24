@@ -120,7 +120,7 @@ export default async function BookPage({ params }: { params: Promise<{ bookId: s
                       background: completedChapters === book.chapters.length && book.chapters.length > 0
                         ? "var(--green)"
                         : "var(--accent)",
-                      boxShadow: completedChapters > 0 ? "0 0 8px rgba(58,123,213,0.4)" : "none",
+                      boxShadow: completedChapters > 0 ? "0 0 8px rgba(107,21,21,0.4)" : "none",
                     }}
                   />
                 </div>

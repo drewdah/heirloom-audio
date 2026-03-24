@@ -15,7 +15,7 @@ const config: Config = {
         "ha-elevated": "#141414",
         "ha-raised":   "#1c1c1e",
         "ha-overlay":  "#2c2c2e",
-        "ha-accent":   "#3a7bd5",
+        "ha-accent":   "#6B1515",
         "ha-green":    "#30d158",
         "ha-red":      "#ff453a",
         // Shelf-only warm palette
@@ -25,7 +25,7 @@ const config: Config = {
       borderRadius: { DEFAULT: "8px" },
       boxShadow: {
         "ha-card": "0 2px 24px rgba(0,0,0,0.45)",
-        "ha-accent": "0 4px 16px rgba(58,123,213,0.35)",
+        "ha-accent": "0 4px 16px rgba(107,21,21,0.35)",
       },
     },
   },

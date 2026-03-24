@@ -315,7 +315,7 @@ export default function PunchInRecorder({
             </span>
             {existingTakes.map((t) => (
               <div key={t.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
-                style={{ background: t.isActive ? "rgba(58,123,213,0.08)" : "transparent" }}>
+                style={{ background: t.isActive ? "rgba(107,21,21,0.08)" : "transparent" }}>
                 <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ background: t.isActive ? "var(--accent)" : "rgba(255,255,255,0.15)" }} />
                 <span className="text-xs flex-1" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}>

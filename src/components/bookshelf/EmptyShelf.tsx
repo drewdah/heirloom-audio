@@ -1,28 +1,16 @@
 import Link from "next/link";
 import { BookOpen, Mic, PlusCircle } from "lucide-react";
 
-function VintageMicIcon({ size = 36 }: { size?: number }) {
-  return (
-    <svg width={size} height={size * 42 / 36} viewBox="0 0 14 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3.5" y="0.5" width="7" height="9" rx="3.5" fill="white" fillOpacity="0.9" />
-      <line x1="3.5" y1="3" x2="10.5" y2="3" stroke="rgba(58,123,213,0.8)" strokeWidth="0.8" />
-      <line x1="3.5" y1="5" x2="10.5" y2="5" stroke="rgba(58,123,213,0.8)" strokeWidth="0.8" />
-      <line x1="3.5" y1="7" x2="10.5" y2="7" stroke="rgba(58,123,213,0.8)" strokeWidth="0.8" />
-      <rect x="6" y="9.5" width="2" height="2" fill="white" fillOpacity="0.7" />
-      <path d="M3 11.5 Q7 13.5 11 11.5" stroke="white" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-      <line x1="7" y1="13" x2="7" y2="15.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="4.5" y1="15.5" x2="9.5" y2="15.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export default function EmptyShelf() {
   return (
     <div className="text-center py-20 px-6">
-      <div
-        className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-8"
-        style={{ background: "var(--accent)", boxShadow: "0 0 32px rgba(58,123,213,0.35)", border: "1px solid rgba(58,123,213,0.4)" }}>
-        <VintageMicIcon size={36} />
+      <div className="inline-flex mb-8">
+        <img
+          src="/images/logo-simplified.png"
+          alt="Heirloom Audio"
+          className="w-80 h-80"
+          style={{ filter: "drop-shadow(0 0 24px rgba(107,21,21,0.3))" }}
+        />
       </div>
 
       <h2 className="text-3xl font-display mb-3" style={{ color: "var(--text-primary)" }}>

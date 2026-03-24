@@ -63,8 +63,8 @@ export default function RecordingTimeline({ elapsed, isRecording }: RecordingTim
     // Scrolled waveform ghost — just a subtle recorded region fill
     const recordedW = headX;
     const grad = ctx.createLinearGradient(0, 0, recordedW, 0);
-    grad.addColorStop(0, "rgba(58,123,213,0)");
-    grad.addColorStop(1, "rgba(58,123,213,0.08)");
+    grad.addColorStop(0, "rgba(107,21,21,0)");
+    grad.addColorStop(1, "rgba(107,21,21,0.08)");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, recordedW, h);
 

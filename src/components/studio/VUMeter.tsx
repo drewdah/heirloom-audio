@@ -7,8 +7,8 @@ interface VUMeterProps {
 }
 
 const BAR_COUNT = 24;
-const CLIP_THRESHOLD = 0.88; // above this = clipping warning
-const WARN_THRESHOLD = 0.72; // above this = caution yellow
+const CLIP_THRESHOLD = 0.92;
+const WARN_THRESHOLD = 0.75;
 
 function drawMeter(
   ctx: CanvasRenderingContext2D,
@@ -21,17 +21,18 @@ function drawMeter(
   ctx.clearRect(0, 0, w, h);
 
   const barW = Math.floor((w - (BAR_COUNT - 1) * 2) / BAR_COUNT);
-  const activeCount = Math.round(Math.min(rms * 9, 1) * BAR_COUNT);
-  const peakBar = Math.round(Math.min(peak * 9, 1) * (BAR_COUNT - 1));
+  const toLevel = (v: number) => v > 0 ? Math.max(0, Math.min(1, (20 * Math.log10(v) + 60) / 60)) : 0;
+  const activeCount = Math.round(toLevel(rms) * BAR_COUNT);
+  const peakBar = Math.round(toLevel(peak) * (BAR_COUNT - 1));
 
   for (let i = 0; i < BAR_COUNT; i++) {
     const x = i * (barW + 2);
     const active = i < activeCount;
     const isPeak = i === peakBar && peak > 0.04;
 
+    const frac = i / BAR_COUNT;
     let color: string;
     if (active || isPeak) {
-      const frac = i / BAR_COUNT;
       if (frac >= CLIP_THRESHOLD) {
         color = clipping ? "#ff3b30" : "rgba(255,59,48,0.9)";
       } else if (frac >= WARN_THRESHOLD) {
@@ -43,7 +44,9 @@ function drawMeter(
       }
       if (isPeak && !active) color = color.replace("0.9", "1");
     } else {
-      color = "rgba(255,255,255,0.07)";
+      if (frac >= CLIP_THRESHOLD) color = "rgba(255,59,48,0.15)";
+      else if (frac >= WARN_THRESHOLD) color = "rgba(255,214,10,0.12)";
+      else color = "rgba(255,255,255,0.07)";
     }
 
     ctx.fillStyle = color;
@@ -52,7 +55,6 @@ function drawMeter(
     ctx.fill();
   }
 
-  // Clip indicator dot on far right when clipping
   if (clipping) {
     ctx.fillStyle = "#ff3b30";
     ctx.beginPath();
@@ -157,13 +159,7 @@ export default function VUMeter({ stream, isRecording }: VUMeterProps) {
         className="w-full rounded"
         style={{ height: "20px" }}
       />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Level legend */}
-          <span className="text-xs" style={{ color: "rgba(48,200,88,0.8)", fontSize: "0.6rem" }}>GOOD</span>
-          <span className="text-xs" style={{ color: "rgba(255,214,10,0.8)", fontSize: "0.6rem" }}>LOUD</span>
-          <span className="text-xs" style={{ color: "rgba(255,59,48,0.8)", fontSize: "0.6rem" }}>CLIP</span>
-        </div>
+      <div className="flex justify-end">
         <span
           className="text-xs font-mono uppercase tracking-wider"
           style={{

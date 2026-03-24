@@ -1,20 +1,19 @@
 "use client";
 import { signIn } from "next-auth/react";
-import { BookOpen } from "lucide-react";
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
       <div style={{
         position: "fixed", inset: 0,
-        background: "radial-gradient(ellipse at 50% 0%, rgba(58,123,213,0.08) 0%, transparent 60%)",
+        background: "radial-gradient(ellipse at 50% 0%, rgba(107,21,21,0.08) 0%, transparent 60%)",
         pointerEvents: "none",
       }} />
       <div className="relative z-10 w-full max-w-sm mx-6">
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-5"
-            style={{ background: "var(--accent)", boxShadow: "0 8px 32px rgba(58,123,213,0.4)" }}>
-            <BookOpen className="w-7 h-7 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5"
+            style={{ boxShadow: "0 8px 32px rgba(107,21,21,0.4)" }}>
+            <img src="/images/logo-simplified.png" alt="Heirloom Audio" className="w-16 h-16 rounded-full" />
           </div>
           <h1 className="text-2xl font-display mb-1" style={{ color: "var(--text-primary)" }}>HeirloomAudio</h1>
           <p className="text-sm" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
