@@ -112,8 +112,8 @@ def _notify_transcribe(take_id, chapter_id, text, error, secret):
 SIMPLE_FILTER_NO_NORM = (
     "highpass=f=80,"
     "lowpass=f=16000,"
-    "equalizer=f=300:t=o:w=200:g=-3,"
-    "equalizer=f=2500:t=o:w=1500:g=2,"
+    "equalizer=f=300:t=h:w=200:g=-3,"   # cut 300 Hz muddiness (200 Hz bandwidth)
+    "equalizer=f=2500:t=h:w=1500:g=2,"  # boost 2.5 kHz presence (1500 Hz bandwidth)
     "acompressor=threshold=-18dB:ratio=3:attack=5:release=100"
     # no makeup gain — avoids pushing peaks toward clip before loudnorm
 )
@@ -122,8 +122,9 @@ SIMPLE_FILTER_NO_NORM = (
 # driven by a narrow boost on the 7.5 kHz band.
 DEESSER_FILTER_COMPLEX = (
     "[0:a]asplit=2[main][sc];"
-    "[sc]equalizer=f=7500:t=o:w=3000:g=10[sc_boosted];"
-    "[main][sc_boosted]sidechaincompress=threshold=0.02:ratio=4:attack=1:release=50:level_sc=0.5[deessed]"
+    "[sc]equalizer=f=7500:t=h:w=3000:g=10[sc_boosted];"  # 3 kHz wide boost at 7.5 kHz to drive the sidechain
+    "[main][sc_boosted]sidechaincompress=threshold=0.05:ratio=4:attack=1:release=50:level_sc=0.5[deessed]"
+    # threshold=0.05 (~-26 dB) engages only on genuine sibilance, not all audio
 )
 
 
@@ -165,7 +166,7 @@ def process_take(input_path: str, output_path: str) -> None:
         # Pass 1 — noise reduction
         # arnndn: neural noise suppressor (needs a model; fall back to anlmdn only if unavailable)
         # anlmdn: non-local means denoising for residual steady-state noise
-        noise_filter = "anlmdn=s=7:p=0.002:r=0.002:m=15"
+        noise_filter = "anlmdn=s=1:p=0.002:r=0.002:m=15"  # s=1 is light/natural for speech; s=7 caused heavy warbling
         try:
             cmd_nr = [
                 "ffmpeg", "-y",
