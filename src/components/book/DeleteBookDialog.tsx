@@ -40,8 +40,8 @@ export default function DeleteBookDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4"
+      style={{ paddingTop: "10vh", paddingBottom: "64px", background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}>
       <div className="w-full max-w-md rounded-2xl p-6 space-y-5"
         style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-default)", boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}>
 

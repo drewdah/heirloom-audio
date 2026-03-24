@@ -40,7 +40,7 @@ interface ChapterTimelineProps {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CLIP_COLORS = [
-  { wave: "rgba(58,123,213,0.7)",  progress: "#3a7bd5", bg: "rgba(58,123,213,0.15)",  border: "#3a7bd5" },
+  { wave: "rgba(107,21,21,0.7)",  progress: "#6B1515", bg: "rgba(107,21,21,0.15)",  border: "#6B1515" },
   { wave: "rgba(48,209,88,0.7)",   progress: "#30d158", bg: "rgba(48,209,88,0.12)",   border: "#30d158" },
   { wave: "rgba(255,149,0,0.7)",   progress: "#ff9500", bg: "rgba(255,149,0,0.12)",   border: "#ff9500" },
   { wave: "rgba(191,90,242,0.7)",  progress: "#bf5af2", bg: "rgba(191,90,242,0.12)",  border: "#bf5af2" },
@@ -598,7 +598,7 @@ export default function ChapterTimeline({
         const playBtnColor = isProcessed ? "#30d158" : "var(--accent)";
         const playBtnShadow = isProcessed
           ? "0 2px 10px rgba(48,209,88,0.5)"
-          : "0 2px 10px rgba(58,123,213,0.5)";
+          : "0 2px 10px rgba(107,21,21,0.5)";
         return (
           <div className="flex items-center gap-3 px-4 border-b flex-shrink-0 relative"
             style={{ borderColor: "var(--border-subtle)", background: "#0a0a0c", minHeight: 60 }}>
@@ -788,9 +788,9 @@ export default function ChapterTimeline({
           {/* ── Playhead ──────────────────────────────────────────────────── */}
           <div
             className="absolute top-0 bottom-0 pointer-events-none"
-            style={{ left: playheadSec * pxPerSec, width: 1, background: "rgba(58,123,213,0.9)", boxShadow: "0 0 6px rgba(58,123,213,0.6)", zIndex: 20 }}>
+            style={{ left: playheadSec * pxPerSec, width: 1, background: "rgba(107,21,21,0.9)", boxShadow: "0 0 6px rgba(107,21,21,0.6)", zIndex: 20 }}>
             <div className="absolute top-0 w-2.5 h-2.5 rounded-full -translate-x-1/2"
-              style={{ background: "#3a7bd5", boxShadow: "0 0 6px rgba(58,123,213,0.8)" }} />
+              style={{ background: "#6B1515", boxShadow: "0 0 6px rgba(107,21,21,0.8)" }} />
           </div>
 
           {/* ── Hover cursor ──────────────────────────────────────────────── */}
@@ -894,7 +894,7 @@ export default function ChapterTimeline({
         {/* Uploading */}
         {recState === "uploading" && (
           <div className="flex items-center gap-3 px-4 py-3"
-            style={{ background: "rgba(58,123,213,0.05)" }}>
+            style={{ background: "rgba(107,21,21,0.05)" }}>
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: "var(--accent)" }} />
             <span className="text-sm" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}>Saving…</span>
           </div>

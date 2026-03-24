@@ -26,7 +26,7 @@ interface WaveformPlayerProps {
 }
 
 const TAKE_COLORS = [
-  { bg: "rgba(58,123,213,0.12)",  border: "rgba(58,123,213,0.35)",  waveColor: "rgba(58,123,213,0.6)",  progressColor: "#3a7bd5" },
+  { bg: "rgba(107,21,21,0.12)",  border: "rgba(107,21,21,0.35)",  waveColor: "rgba(107,21,21,0.6)",  progressColor: "#6B1515" },
   { bg: "rgba(48,209,88,0.10)",   border: "rgba(48,209,88,0.30)",   waveColor: "rgba(48,209,88,0.6)",   progressColor: "#30d158" },
   { bg: "rgba(255,149,0,0.10)",   border: "rgba(255,149,0,0.30)",   waveColor: "rgba(255,149,0,0.6)",   progressColor: "#ff9500" },
   { bg: "rgba(191,90,242,0.10)",  border: "rgba(191,90,242,0.30)",  waveColor: "rgba(191,90,242,0.6)",  progressColor: "#bf5af2" },
@@ -85,7 +85,7 @@ export default function WaveformPlayer({
         ws = WaveSurfer.create({
           container: containerRef.current!,
           waveColor: "rgba(255,255,255,0.18)",
-          progressColor: "#3a7bd5",
+          progressColor: "#6B1515",
           cursorColor: "rgba(255,255,255,0.7)",
           cursorWidth: 2,
           barWidth: 2,
@@ -367,7 +367,7 @@ export default function WaveformPlayer({
       {/* Uploading indicator */}
       {recState === "uploading" && (
         <div className="flex items-center gap-3 px-4 py-3 border-t"
-          style={{ borderColor: "var(--border-subtle)", background: "rgba(58,123,213,0.06)" }}>
+          style={{ borderColor: "var(--border-subtle)", background: "rgba(107,21,21,0.06)" }}>
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: "var(--accent)" }} />
           <span className="text-sm" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}>Saving…</span>
         </div>
@@ -394,7 +394,7 @@ export default function WaveformPlayer({
         </button>
         <button onClick={() => wsRef.current?.playPause()} disabled={!ready}
           className="w-10 h-10 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
-          style={{ background: "var(--accent)", boxShadow: ready ? "0 2px 12px rgba(58,123,213,0.5)" : "none" }}>
+          style={{ background: "var(--accent)", boxShadow: ready ? "0 2px 12px rgba(107,21,21,0.5)" : "none" }}>
           {isPlaying ? <Pause className="w-4 h-4 text-white fill-white" /> : <Play className="w-4 h-4 text-white fill-white" style={{ marginLeft: "2px" }} />}
         </button>
         <button onClick={() => skip(5)} disabled={!ready} className="p-1.5 rounded disabled:opacity-30" style={{ color: "var(--text-tertiary)" }} title="Forward 5s">

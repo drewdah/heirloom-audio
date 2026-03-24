@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
           author: body.bookAuthor ?? "Test Author",
           language: "en",
           versionTag: "v1-test",
+          coverImageUrl: body.coverImageUrl ?? null,
         },
       });
       bookId = book.id;
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest) {
       const numChapters = body.chapters ?? 0;
       // completedChapters: first N chapters get recordingComplete=true (makes Export button enabled)
       const numCompleted = body.completedChapters ?? 0;
+      // processedChapters: first N chapters get processStatus="done" (unblocks Export M4B button)
+      const numProcessed = body.processedChapters ?? 0;
 
       for (let i = 1; i <= numChapters; i++) {
         const ch = await prisma.chapter.create({
@@ -81,6 +84,7 @@ export async function POST(req: NextRequest) {
             title: `Chapter ${i}`,
             groupTitle: body.groupTitle ?? null,
             recordingComplete: i <= numCompleted,
+            processStatus: i <= numProcessed ? "done" : undefined,
           },
         });
         chapterIds.push(ch.id);

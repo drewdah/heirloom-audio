@@ -14,7 +14,7 @@
     "test:integration": "vitest run tests/integration",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "screenshots": "tsx scripts/screenshots.ts",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts",
     "security": "bash scripts/security-scan.sh",
     "security:audit": "npm audit --audit-level=high",
     "security:trivy": "bash scripts/security-scan.sh trivy",

@@ -130,7 +130,7 @@ export default function BookSpine({ book, index }: BookSpineProps) {
           )}
           {totalChapters > 0 && (
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "3px", background: "rgba(0,0,0,0.5)" }}>
-              <div style={{ width: `${progress * 100}%`, height: "100%", background: progress === 1 ? "#30d158" : "#3a7bd5", transition: "width 0.5s" }} />
+              <div style={{ width: `${progress * 100}%`, height: "100%", background: progress === 1 ? "#30d158" : "#6B1515", transition: "width 0.5s" }} />
             </div>
           )}
         </div>

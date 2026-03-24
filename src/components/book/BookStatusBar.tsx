@@ -15,7 +15,7 @@ export default function BookStatusBar({ bookTitle, totalChapters, recordedChapte
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 border-t"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t"
       style={{
         background: "rgba(10,10,10,0.92)",
         borderColor: "rgba(255,255,255,0.08)",

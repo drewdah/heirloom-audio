@@ -80,7 +80,7 @@ export default function ChapterList({ bookId, chapters: initial }: ChapterListPr
                   style={{ color: "var(--accent)", fontFamily: "var(--font-sans)", letterSpacing: "0.12em" }}>
                   {chapter.groupTitle}
                 </span>
-                <div className="flex-1 h-px" style={{ background: "rgba(58,123,213,0.2)" }} />
+                <div className="flex-1 h-px" style={{ background: "rgba(107,21,21,0.2)" }} />
               </div>
             )}
 

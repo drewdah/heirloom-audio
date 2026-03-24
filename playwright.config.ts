@@ -4,6 +4,7 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  testIgnore: "**/screenshots.spec.ts",
   fullyParallel: false,
   retries: isCI ? 2 : 0,
   timeout: isCI ? 60_000 : 30_000,

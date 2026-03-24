@@ -88,8 +88,10 @@ export async function seedContent(
     bookAuthor?: string;
     chapters?: number;
     completedChapters?: number;
+    processedChapters?: number;
     groupTitle?: string;
     take?: boolean;
+    coverImageUrl?: string | null;
   } = {}
 ): Promise<SeedData> {
   await request.delete("/api/test/seed");

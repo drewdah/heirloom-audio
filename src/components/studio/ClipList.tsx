@@ -18,7 +18,7 @@ interface Clip {
 }
 
 const CLIP_COLORS = [
-  { bg: "rgba(58,123,213,0.15)",  border: "#3a7bd5" },
+  { bg: "rgba(107,21,21,0.15)",  border: "#6B1515" },
   { bg: "rgba(48,209,88,0.12)",   border: "#30d158" },
   { bg: "rgba(255,149,0,0.12)",   border: "#ff9500" },
   { bg: "rgba(191,90,242,0.12)",  border: "#bf5af2" },
@@ -222,8 +222,8 @@ function TranscriptBox({
       <div
         className="rounded px-3 py-2 flex items-center gap-2 text-xs"
         style={{
-          background: "rgba(58,123,213,0.07)",
-          border: "1px solid rgba(58,123,213,0.2)",
+          background: "rgba(107,21,21,0.07)",
+          border: "1px solid rgba(107,21,21,0.2)",
           color: "var(--text-secondary)",
           fontFamily: "var(--font-sans)",
         }}
@@ -235,7 +235,7 @@ function TranscriptBox({
               key={i}
               className="inline-block w-1 h-1 rounded-full"
               style={{
-                background: "#3a7bd5",
+                background: "#6B1515",
                 animation: "pulse 1.2s ease-in-out infinite",
                 animationDelay: `${i * 0.2}s`,
               }}
