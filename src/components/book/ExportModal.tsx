@@ -123,7 +123,7 @@ export default function ExportModal({ bookId, book, chapters, onClose }: ExportM
       style={{
         position: "fixed", inset: 0, zIndex: 100,
         background: "rgba(0,0,0,0.7)",
-        display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "10vh",
+        display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "10vh", paddingBottom: "64px",
         backdropFilter: "blur(4px)",
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}

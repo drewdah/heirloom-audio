@@ -173,3 +173,46 @@ test("export modal", async ({ page, request }) => {
   await prepareScreenshot(page);
   await page.screenshot({ path: shot("export-modal.png"), fullPage: false });
 });
+
+test("export complete", async ({ page, request }) => {
+  const seed = await seedContent(request, {
+    book: true,
+    bookTitle: "The Call of the Wild",
+    bookAuthor: "Jack London",
+    chapters: 3,
+    completedChapters: 3,
+    processedChapters: 3,
+    coverImageUrl: coverDataUri("call-of-the-wild.jpg"),
+  });
+
+  // Intercept the export API so the modal jumps straight to the "done" state
+  // without needing a real FFmpeg worker running.
+  await page.route(`/api/books/${seed.bookId}/export`, async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({ json: { exportId: "mock-export-id", status: "queued" } });
+    } else {
+      await route.fulfill({
+        json: {
+          latestExport: {
+            id: "mock-export-id",
+            exportStatus: "done",
+            exportFileUrl: null,
+            fileSizeBytes: 47_185_920,
+            versionTag: "v1-2026-03-24",
+          },
+        },
+      });
+    }
+  });
+
+  await page.goto(`/books/${seed.bookId}`);
+  await page.waitForLoadState("networkidle");
+  await page.click('button:has-text("Export")');
+  await page.waitForSelector("text=Export Audiobook", { timeout: 5_000 });
+  // Start the export — modal transitions to "exporting" then polls → "done"
+  // Use last() since the header also has an "Export M4B" button
+  await page.locator('button:has-text("Export M4B")').last().click();
+  await page.waitForSelector("text=Export complete!", { timeout: 10_000 });
+  await prepareScreenshot(page);
+  await page.screenshot({ path: shot("export-complete.png"), fullPage: false });
+});
