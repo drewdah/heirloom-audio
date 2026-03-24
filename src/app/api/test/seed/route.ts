@@ -5,9 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
  *
  * POST /api/test/seed — seeds the test user + session.
  *   Optional JSON body to also seed content:
- *     { book: true }                    → creates a test book
- *     { book: true, chapters: 3 }       → creates a book with 3 chapters
- *     { book: true, chapters: 1, take: true } → book + chapter + take
+ *     { book: true }                                         → creates a test book
+ *     { book: true, chapters: 3 }                            → creates a book with 3 chapters
+ *     { book: true, chapters: 3, completedChapters: 1 }      → 3 chapters, first 1 has recordingComplete=true
+ *     { book: true, chapters: 1, take: true }                → book + chapter + take
  *
  * DELETE /api/test/seed — clears all content data.
  *
@@ -69,6 +70,9 @@ export async function POST(req: NextRequest) {
       bookId = book.id;
 
       const numChapters = body.chapters ?? 0;
+      // completedChapters: first N chapters get recordingComplete=true (makes Export button enabled)
+      const numCompleted = body.completedChapters ?? 0;
+
       for (let i = 1; i <= numChapters; i++) {
         const ch = await prisma.chapter.create({
           data: {
@@ -76,6 +80,7 @@ export async function POST(req: NextRequest) {
             order: i,
             title: `Chapter ${i}`,
             groupTitle: body.groupTitle ?? null,
+            recordingComplete: i <= numCompleted,
           },
         });
         chapterIds.push(ch.id);
