@@ -8,9 +8,7 @@
 
 Heirloom Audio is a self-hosted web app for recording professional-quality M4B audiobooks.
 
-<p align="center">
-  <img src="public/images/header_logo.png" alt="Heirloom Audio" width="600" />
-</p>
+![Heirloom Audio](public/images/header_logo.png)
 
 ---
 
