@@ -22,7 +22,7 @@ export default function RootLayout({
       </head>
       <body className="noise-overlay vignette min-h-screen antialiased" suppressHydrationWarning>
         {children}
-        <div className="fixed bottom-4 right-4 z-50 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg pointer-events-none select-none tracking-widest uppercase">
+        <div className="fixed bottom-[12px] right-4 z-50 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg pointer-events-none select-none tracking-widest uppercase">
           Beta
         </div>
       </body>
