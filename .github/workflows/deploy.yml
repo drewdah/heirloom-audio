@@ -24,5 +24,29 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans
             docker rm -f $(docker ps -aq) 2>/dev/null || true
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+            echo "==> Starting all services except nginx..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d redis certbot whisper-worker app
+
+            echo "==> Waiting for app to become healthy..."
+            for i in $(seq 1 24); do
+              STATUS=$(docker inspect heirloom-audio --format '{{.State.Health.Status}}' 2>/dev/null || echo unknown)
+              echo "  [$i] app: $STATUS"
+              [ "$STATUS" = "healthy" ] && break
+              sleep 5
+            done
+
+            echo "==> Diagnostics before nginx start:"
+            echo "--- ss port 443 ---"
+            ss -tlnp 'sport = :443' || true
+            echo "--- iptables NAT ---"
+            iptables -t nat -L DOCKER -n --line-numbers 2>/dev/null | head -20 || true
+            echo "--- docker ps ---"
+            docker ps -a
+            echo "--- certbot logs ---"
+            docker logs heirloom-certbot --tail 20 2>/dev/null || true
+
+            echo "==> Starting nginx..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
+
             docker image prune -f
