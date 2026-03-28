@@ -17,6 +17,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            set -eo pipefail
             curl -fsSL https://raw.githubusercontent.com/drewdah/heirloom-audio/main/scripts/server-setup.sh | bash
             cd /opt/heirloom-audio
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin

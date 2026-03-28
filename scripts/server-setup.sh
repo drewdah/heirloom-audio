@@ -93,9 +93,11 @@ else
 
   cd "$APP_DIR"
 
-  # Obtain cert using standalone mode — certbot listens directly on port 80
+  # Obtain cert using standalone mode — certbot listens directly on port 80.
+  # --net=host bypasses docker-proxy entirely so Docker's internal port tracking
+  # cannot interfere with the bind even if it hasn't fully released a previous mapping.
   docker run --rm \
-    -p 80:80 \
+    --net=host \
     -v "${CERT_VOLUME}:/etc/letsencrypt" \
     certbot/certbot certonly \
     --standalone \
