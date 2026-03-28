@@ -75,6 +75,9 @@ mkdir -p "$APP_DIR/public/takes"
 mkdir -p "$APP_DIR/public/exports"
 chown -R "$APP_UID" "$APP_DIR/data"
 chown -R "$APP_UID" "$APP_DIR/public"
+# public/takes and public/exports are written by both the app (uid 1001) and
+# whisper-worker (uid 1000) containers, so they need to be world-writable.
+chmod 777 "$APP_DIR/public/takes" "$APP_DIR/public/exports"
 
 echo "==> Cloning repo..."
 if [ -d "$APP_DIR/.git" ]; then
