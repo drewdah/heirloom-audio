@@ -8,6 +8,8 @@
 
 services:
   app:
+    ports:
+      - "3000:3000"
     environment:
       ENABLE_TEST_SEED: "true"
       SKIP_DRIVE: "true"
