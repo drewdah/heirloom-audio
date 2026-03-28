@@ -79,7 +79,7 @@ chown -R "$APP_UID" "$APP_DIR/public"
 echo "==> Cloning repo..."
 if [ -d "$APP_DIR/.git" ]; then
   echo "    Repo already cloned, pulling latest."
-  git -C "$APP_DIR" fetch origin main
+  git -C "$APP_DIR" fetch origin
   git -C "$APP_DIR" reset --hard origin/main
 else
   # Preserve .env if it exists from a previous partial setup
