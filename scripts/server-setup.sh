@@ -45,6 +45,18 @@ else
   echo "    Docker already installed, skipping."
 fi
 
+echo "==> Configuring Docker daemon (disable userland proxy)..."
+DAEMON_JSON="/etc/docker/daemon.json"
+DESIRED_CONFIG='{"userland-proxy": false}'
+CURRENT_CONFIG=$(cat "$DAEMON_JSON" 2>/dev/null || echo "")
+if [ "$CURRENT_CONFIG" != "$DESIRED_CONFIG" ]; then
+  echo "$DESIRED_CONFIG" > "$DAEMON_JSON"
+  systemctl restart docker
+  echo "    Docker daemon reconfigured."
+else
+  echo "    Docker daemon already configured, skipping."
+fi
+
 echo "==> Installing docker-compose-plugin..."
 if ! docker compose version &>/dev/null; then
   apt-get install -y docker-compose-plugin
