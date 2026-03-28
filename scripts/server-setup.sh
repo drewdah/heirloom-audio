@@ -99,7 +99,7 @@ else
 fi
 
 echo "==> Installing nginx reload cron job..."
-( crontab -l 2>/dev/null | grep -v 'nginx -s reload'; echo "0 3 * * * docker exec heirloom-nginx nginx -s reload >> /var/log/nginx-reload.log 2>&1" ) | crontab -
+( crontab -l 2>/dev/null | grep -v 'nginx -s reload' || true; echo "0 3 * * * docker exec heirloom-nginx nginx -s reload >> /var/log/nginx-reload.log 2>&1" ) | crontab -
 echo "    Cron job installed."
 
 echo ""
