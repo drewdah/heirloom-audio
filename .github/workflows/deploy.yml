@@ -68,17 +68,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Copy compose files to Droplet
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "docker-compose.yml,docker-compose.prod.yml"
-          target: "/opt/heirloom-audio"
-
       - name: Pull & restart services
         uses: appleboy/ssh-action@v1
         with:
@@ -86,6 +75,11 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            if [ -d /opt/heirloom-audio/.git ]; then
+              git -C /opt/heirloom-audio pull
+            else
+              git clone https://github.com/drewdah/heirloom-audio.git /opt/heirloom-audio
+            fi
             cd /opt/heirloom-audio
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
