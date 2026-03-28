@@ -75,6 +75,9 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            if ! docker compose version &>/dev/null; then
+              apt-get install -y docker-compose-plugin
+            fi
             if [ -d /opt/heirloom-audio/.git ]; then
               git -C /opt/heirloom-audio pull
             else
