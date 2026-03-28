@@ -4,13 +4,6 @@
 #
 # Run this ONCE on a fresh server after server-setup.sh, before the first deploy.
 # All containers must be stopped before running this script (port 80 must be free).
-#
-# To expand the cert to include www later:
-#   docker run --rm --net=host \
-#     -v heirloom-audio_certbot-certs:/etc/letsencrypt \
-#     certbot/certbot certonly --standalone --expand \
-#     --email admin@heirloomaudioapp.com --agree-tos --no-eff-email \
-#     -d heirloomaudioapp.com -d www.heirloomaudioapp.com
 
 set -euo pipefail
 
@@ -46,7 +39,8 @@ docker run --rm \
   --email "admin@$DOMAIN" \
   --agree-tos \
   --no-eff-email \
-  -d "$DOMAIN"
+  -d "$DOMAIN" \
+  -d "www.$DOMAIN"
 
 echo ""
 echo "✓ Certificate obtained. Push a release tag to trigger the first deploy."
