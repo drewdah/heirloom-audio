@@ -7,7 +7,7 @@
 #   2. Creates required data directories with correct ownership
 #   3. Clones the repo to /opt/heirloom-audio
 #   4. Opens ports 80 and 443 in ufw
-#   5. Obtains a Let's Encrypt SSL certificate (first run only)
+#   5. Obtains a Let's Encrypt SSL certificate via certbot standalone (first run only)
 #   6. Installs a daily cron job to reload nginx after cert renewal
 #   7. Prompts you to create the .env file
 #
@@ -21,7 +21,7 @@ REPO_URL="https://github.com/drewdah/heirloom-audio.git"
 APP_DIR="/opt/heirloom-audio"
 APP_UID=1001
 DOMAIN="heirloomaudioapp.com"
-CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
+CERT_VOLUME="$(basename "$APP_DIR")_certbot-certs"
 
 echo "==> Checking for root..."
 if [ "$EUID" -ne 0 ]; then
@@ -80,50 +80,28 @@ else
 fi
 
 echo "==> Checking SSL certificate..."
-if [ -d "$CERT_DIR" ]; then
+if docker run --rm -v "${CERT_VOLUME}:/etc/letsencrypt" alpine \
+     test -d "/etc/letsencrypt/live/$DOMAIN" 2>/dev/null; then
   echo "    Certificate already exists, skipping issuance."
 else
   echo "    No certificate found. Obtaining Let's Encrypt cert for $DOMAIN..."
 
   cd "$APP_DIR"
 
-  # Step 1: Write a temporary HTTP-only nginx config so nginx can start
-  # without referencing cert files that don't exist yet
-  cat > "$APP_DIR/nginx/conf.d/default.conf" << NGINXEOF
-server {
-    listen 80;
-    server_name $DOMAIN www.$DOMAIN;
-    location /.well-known/acme-challenge/ {
-        root /var/www/certbot;
-    }
-    location / {
-        return 200 'ready';
-        add_header Content-Type text/plain;
-    }
-}
-NGINXEOF
+  # Stop any running containers to free port 80 for certbot standalone
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml down 2>/dev/null || true
 
-  # Step 2: Start nginx only (app isn't running yet so we skip depends_on)
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
-
-  # Give nginx a moment to start
-  sleep 3
-
-  # Step 3: Obtain the certificate
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm certbot certonly \
-    --webroot \
-    --webroot-path=/var/www/certbot \
+  # Obtain cert using standalone mode — certbot listens directly on port 80
+  docker run --rm \
+    -p 80:80 \
+    -v "${CERT_VOLUME}:/etc/letsencrypt" \
+    certbot/certbot certonly \
+    --standalone \
     --email "admin@$DOMAIN" \
     --agree-tos \
     --no-eff-email \
     -d "$DOMAIN" \
     -d "www.$DOMAIN"
-
-  # Step 4: Restore the full nginx config from the repo
-  git -C "$APP_DIR" checkout -- nginx/conf.d/default.conf
-
-  # Step 5: Reload nginx with the full HTTPS config
-  docker exec heirloom-nginx nginx -s reload
 
   echo "    SSL certificate obtained successfully."
 fi
