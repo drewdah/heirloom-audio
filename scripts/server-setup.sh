@@ -29,6 +29,11 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+echo "==> Stopping any running containers..."
+if [ -f "$APP_DIR/docker-compose.yml" ]; then
+  docker compose -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.prod.yml" down 2>/dev/null || true
+fi
+
 echo "==> Installing Docker..."
 if ! command -v docker &>/dev/null; then
   apt-get update -qq
@@ -87,9 +92,6 @@ else
   echo "    No certificate found. Obtaining Let's Encrypt cert for $DOMAIN..."
 
   cd "$APP_DIR"
-
-  # Stop any running containers to free port 80 for certbot standalone
-  docker compose -f docker-compose.yml -f docker-compose.prod.yml down 2>/dev/null || true
 
   # Obtain cert using standalone mode — certbot listens directly on port 80
   docker run --rm \
