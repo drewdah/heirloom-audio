@@ -1,17 +1,21 @@
 #!/bin/bash
-# server-setup.sh — One-time setup for a fresh Ubuntu LTS server
+# server-setup.sh — Idempotent setup run on every deploy by the CI pipeline.
+# Also safe to run manually on a fresh server.
 # Usage: sudo bash scripts/server-setup.sh
 #
 # What this does:
 #   1. Installs Docker and the Compose plugin
 #   2. Creates required data directories with correct ownership
-#   3. Clones the repo to /opt/heirloom-audio
+#   3. Clones/updates the repo to /opt/heirloom-audio
 #   4. Opens ports 80 and 443 in ufw
-#   5. Obtains a Let's Encrypt SSL certificate via certbot standalone (first run only)
-#   6. Installs a daily cron job to reload nginx after cert renewal
-#   7. Prompts you to create the .env file
+#   5. Installs a daily cron job to reload nginx after cert renewal
+#   6. Creates .env from template if missing
+#
+# SSL certificate setup is a separate one-time step:
+#   sudo bash scripts/cert-bootstrap.sh
 #
 # After running this script:
+#   - Run cert-bootstrap.sh if this is a fresh server
 #   - Fill in /opt/heirloom-audio/.env with your production values
 #   - Push a release tag to trigger the first deploy
 
@@ -21,7 +25,6 @@ REPO_URL="https://github.com/drewdah/heirloom-audio.git"
 APP_DIR="/opt/heirloom-audio"
 APP_UID=1001
 DOMAIN="heirloomaudioapp.com"
-CERT_VOLUME="$(basename "$APP_DIR")_certbot-certs"
 
 echo "==> Checking for root..."
 if [ "$EUID" -ne 0 ]; then
@@ -85,28 +88,14 @@ else
 fi
 
 echo "==> Checking SSL certificate..."
+CERT_VOLUME="$(basename "$APP_DIR")_certbot-certs"
 CERT_MOUNTPOINT=$(docker volume inspect "${CERT_VOLUME}" --format '{{.Mountpoint}}' 2>/dev/null || true)
 if [ -n "$CERT_MOUNTPOINT" ] && [ -d "${CERT_MOUNTPOINT}/live/${DOMAIN}" ]; then
-  echo "    Certificate already exists, skipping issuance."
+  echo "    Certificate found."
 else
-  echo "    No certificate found. Obtaining Let's Encrypt cert for $DOMAIN..."
-
-  cd "$APP_DIR"
-
-  # Obtain cert using standalone mode — certbot listens directly on port 80.
-  # --net=host bypasses docker-proxy entirely so Docker's internal port tracking
-  # cannot interfere with the bind even if it hasn't fully released a previous mapping.
-  docker run --rm \
-    --net=host \
-    -v "${CERT_VOLUME}:/etc/letsencrypt" \
-    certbot/certbot certonly \
-    --standalone \
-    --email "admin@$DOMAIN" \
-    --agree-tos \
-    --no-eff-email \
-    -d "$DOMAIN"
-
-  echo "    SSL certificate obtained successfully."
+  echo "    WARNING: No SSL certificate found in volume ${CERT_VOLUME}."
+  echo "    nginx will not start until a certificate is provisioned."
+  echo "    Run: sudo bash $APP_DIR/scripts/cert-bootstrap.sh"
 fi
 
 echo "==> Installing nginx reload cron job..."
@@ -136,13 +125,9 @@ fi
 echo ""
 echo "✓ Server setup complete."
 echo ""
-echo "Next steps:"
-echo "  1. Create a Google OAuth client for this deployment:"
-echo "     - Go to https://console.cloud.google.com > APIs & Services > Credentials"
-echo "     - Create an OAuth 2.0 Client ID (Web application)"
-echo "     - Add authorized redirect URI: https://$DOMAIN/api/auth/callback/google"
-echo "     - Copy the client ID and secret"
-echo "  2. Fill in $APP_DIR/.env with your production values"
+echo "Next steps (fresh server only):"
+echo "  1. Fill in $APP_DIR/.env with your production values"
 echo "     (NEXTAUTH_SECRET, NEXTAUTH_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ALLOWED_EMAILS)"
-echo "  3. Add your server's public SSH key to GitHub secrets (DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_USER)"
-echo "  4. Push a release tag to trigger the first deploy"
+echo "  2. Obtain SSL certificate:"
+echo "     sudo bash $APP_DIR/scripts/cert-bootstrap.sh"
+echo "  3. Push a release tag to trigger the first deploy"
