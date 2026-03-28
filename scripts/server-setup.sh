@@ -85,8 +85,8 @@ else
 fi
 
 echo "==> Checking SSL certificate..."
-if docker run --rm -v "${CERT_VOLUME}:/etc/letsencrypt" alpine \
-     test -d "/etc/letsencrypt/live/$DOMAIN" 2>/dev/null; then
+CERT_MOUNTPOINT=$(docker volume inspect "${CERT_VOLUME}" --format '{{.Mountpoint}}' 2>/dev/null || true)
+if [ -n "$CERT_MOUNTPOINT" ] && [ -d "${CERT_MOUNTPOINT}/live/${DOMAIN}" ]; then
   echo "    Certificate already exists, skipping issuance."
 else
   echo "    No certificate found. Obtaining Let's Encrypt cert for $DOMAIN..."
@@ -104,8 +104,7 @@ else
     --email "admin@$DOMAIN" \
     --agree-tos \
     --no-eff-email \
-    -d "$DOMAIN" \
-    -d "www.$DOMAIN"
+    -d "$DOMAIN"
 
   echo "    SSL certificate obtained successfully."
 fi
