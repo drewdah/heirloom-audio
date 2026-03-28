@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PostHogProvider } from "@/components/PostHogProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,7 +22,9 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="noise-overlay vignette min-h-screen antialiased" suppressHydrationWarning>
+        <PostHogProvider>
         {children}
+        </PostHogProvider>
         <div className="fixed bottom-[12px] right-4 z-50 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg pointer-events-none select-none tracking-widest uppercase">
           Beta
         </div>
