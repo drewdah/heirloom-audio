@@ -75,17 +75,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            if ! docker compose version &>/dev/null; then
-              apt-get install -y docker-compose-plugin
-            fi
-            if [ -d /opt/heirloom-audio/.git ]; then
-              git -C /opt/heirloom-audio pull
-            else
-              [ -f /opt/heirloom-audio/.env ] && cp /opt/heirloom-audio/.env /tmp/heirloom.env
-              rm -rf /opt/heirloom-audio
-              git clone https://github.com/drewdah/heirloom-audio.git /opt/heirloom-audio
-              [ -f /tmp/heirloom.env ] && mv /tmp/heirloom.env /opt/heirloom-audio/.env
-            fi
+            curl -fsSL https://raw.githubusercontent.com/drewdah/heirloom-audio/main/scripts/server-setup.sh | bash
             cd /opt/heirloom-audio
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
