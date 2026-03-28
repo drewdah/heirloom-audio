@@ -26,6 +26,14 @@ services:
       timeout: 5s
       retries: 12
 
+  nginx:
+    deploy:
+      replicas: 0
+
+  certbot:
+    deploy:
+      replicas: 0
+
   whisper-worker:
     profiles:
       - whisper

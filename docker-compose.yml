@@ -5,12 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: heirloom-audio
     restart: unless-stopped
-    ports:
-      - "${PORT:-80}:3000"
     environment:
       DATABASE_URL: file:/data/db/heirloom.db
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://heirloomaudioapp.com}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       REDIS_URL: redis://redis:6379
@@ -30,6 +28,29 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: heirloom-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+    depends_on:
+      app:
+        condition: service_healthy
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: heirloom-certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done'"
 
   whisper-worker:
     build:
@@ -79,3 +100,5 @@ services:
 volumes:
   redis-data:
   whisper-models:
+  certbot-webroot:
+  certbot-certs:

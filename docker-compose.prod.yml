@@ -6,3 +6,6 @@ services:
   whisper-worker:
     build: !reset null
     image: ghcr.io/drewdah/heirloom-audio/whisper-worker:latest
+
+  redis:
+    ports: !reset []
