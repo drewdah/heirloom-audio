@@ -37,6 +37,9 @@ if [ -f "$APP_DIR/docker-compose.yml" ]; then
   docker compose -f "$APP_DIR/docker-compose.yml" -f "$APP_DIR/docker-compose.prod.yml" down 2>/dev/null || true
 fi
 
+echo "==> Killing any orphaned host-level nginx processes..."
+pkill nginx 2>/dev/null || true
+
 echo "==> Installing Docker..."
 if ! command -v docker &>/dev/null; then
   apt-get update -qq
