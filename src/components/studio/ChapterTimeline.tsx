@@ -1220,11 +1220,20 @@ function ClipBlock({ clip, color, pxPerSec, trackHeight, onDelete, onMove, onTri
         </button>
       )}
       {confirmDelete && (
-        <div className="absolute top-1 right-1 flex items-center gap-1" style={{ zIndex: 3 }}>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="px-1 rounded text-white" style={{ background: "var(--red)", fontSize: "0.55rem" }}>✕</button>
+        // Cancel sits in the top-right corner — right where the ✕ trigger was —
+        // so a reflexive second click cancels rather than deletes. The
+        // destructive "Delete" is offset to the left with a larger hit target.
+        <div className="absolute top-1 right-1 flex flex-row-reverse items-center gap-1.5" style={{ zIndex: 4 }}>
           <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
-            className="px-1 rounded" style={{ color: "var(--text-tertiary)", fontSize: "0.55rem", background: "rgba(0,0,0,0.5)" }}>cancel</button>
+            className="px-1.5 py-0.5 rounded font-medium"
+            style={{ color: "var(--text-secondary)", fontSize: "0.65rem", background: "rgba(0,0,0,0.7)", border: "1px solid var(--border-default)" }}>
+            Cancel
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="px-1.5 py-0.5 rounded text-white font-medium"
+            style={{ background: "var(--red)", fontSize: "0.65rem" }}>
+            Delete
+          </button>
         </div>
       )}
 

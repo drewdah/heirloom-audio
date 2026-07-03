@@ -20,8 +20,16 @@ export default function DeleteBookDialog({
   const [deleteDrive, setDeleteDrive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("");
+
+  // Deleting a book wipes every chapter and take — the most destructive action
+  // in the app. Require the user to type the title exactly so it can't happen
+  // on a single misclick. Compare trimmed + case-insensitive so it stays doable.
+  const titleMatches =
+    confirmTitle.trim().toLowerCase() === bookTitle.trim().toLowerCase();
 
   const handleDelete = async () => {
+    if (!titleMatches) return;
     setLoading(true);
     setError(null);
     try {
@@ -111,6 +119,32 @@ export default function DeleteBookDialog({
           </label>
         )}
 
+        {/* Type-to-confirm — the Delete button stays disabled until the title matches */}
+        <div className="space-y-2">
+          <label className="text-xs" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
+            Type <span style={{ color: "var(--text-secondary)", fontWeight: 600 }}>{bookTitle}</span> to confirm
+          </label>
+          <input
+            type="text"
+            value={confirmTitle}
+            onChange={(e) => setConfirmTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && titleMatches && !loading) handleDelete(); }}
+            autoFocus
+            autoComplete="off"
+            spellCheck={false}
+            placeholder={bookTitle}
+            disabled={loading}
+            className="w-full rounded-lg px-3 py-2 text-sm"
+            style={{
+              background: "var(--bg-raised)",
+              border: `1px solid ${titleMatches ? "var(--red)" : "var(--border-default)"}`,
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-sans)",
+              outline: "none",
+            }}
+          />
+        </div>
+
         {error && (
           <p className="text-sm" style={{ color: "var(--red)", fontFamily: "var(--font-sans)" }}>{error}</p>
         )}
@@ -119,9 +153,14 @@ export default function DeleteBookDialog({
         <div className="flex gap-3 pt-1">
           <button
             onClick={handleDelete}
-            disabled={loading}
+            disabled={loading || !titleMatches}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors"
-            style={{ background: "var(--red)", color: "white", opacity: loading ? 0.7 : 1 }}>
+            style={{
+              background: "var(--red)",
+              color: "white",
+              opacity: loading ? 0.7 : titleMatches ? 1 : 0.4,
+              cursor: titleMatches && !loading ? "pointer" : "not-allowed",
+            }}>
             {loading
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <Trash2 className="w-4 h-4" />}
