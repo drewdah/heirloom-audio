@@ -116,6 +116,8 @@ export default function RecordingStudio({ chapter: initialChapter }: RecordingSt
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       backupStatus: (t as any).backupStatus ?? "pending",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      previewStatus: (t as any).previewStatus ?? "idle",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       processedFileUrl: (t as any).processedFileUrl ?? null,
       recordedAt: t.recordedAt.toString(),
       isActive: t.isActive,

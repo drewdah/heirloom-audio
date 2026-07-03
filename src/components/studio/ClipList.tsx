@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { Trash2, Cloud, CloudOff, RefreshCw } from "lucide-react";
+import { useState, useRef } from "react";
+import { Trash2, Cloud, CloudOff, RefreshCw, Wand2 } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 
 // Must stay in sync with the Clip interface in ChapterTimeline.tsx
@@ -13,6 +13,7 @@ interface Clip {
   transcript: string | null;
   transcriptStatus: string;
   backupStatus?: string;  // pending | uploading | backed_up | failed
+  previewStatus?: string;  // idle | processing | done | error — A/B preview
   regionStart: number;
   regionEnd: number;
   recordedAt: string;
@@ -84,14 +85,89 @@ function BackupBadge({ status, onRetry }: { status?: string; onRetry?: () => voi
   );
 }
 
+function previewUrls(audioFileUrl: string | null) {
+  if (!audioFileUrl) return null;
+  const stem = audioFileUrl.split("/").pop()!.replace(/\.[^.]+$/, "");
+  return { raw: `/takes/${stem}_preview_raw.wav`, processed: `/takes/${stem}_preview.wav` };
+}
+
+function AbPreview({ audioFileUrl, status, onStart }: { audioFileUrl: string | null; status?: string; onStart: () => void }) {
+  const urls = previewUrls(audioFileUrl);
+  const [side, setSide] = useState<"raw" | "processed">("processed");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  if (!urls) return null;
+
+  // Toggle raw⇄processed in place, preserving playback position for a true A/B.
+  const switchSide = (next: "raw" | "processed") => {
+    const a = audioRef.current;
+    if (next === side || !a) { setSide(next); return; }
+    const t = a.currentTime;
+    const wasPlaying = !a.paused;
+    setSide(next);
+    a.src = next === "raw" ? urls.raw : urls.processed;
+    a.load();
+    a.currentTime = t;
+    if (wasPlaying) a.play().catch(() => {});
+  };
+
+  if (status === "processing") {
+    return (
+      <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}>
+        <RefreshCw className="animate-spin" style={{ width: 12, height: 12 }} /> Rendering preview…
+      </div>
+    );
+  }
+
+  if (status === "done") {
+    return (
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
+          {(["raw", "processed"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => switchSide(s)}
+              className="px-2.5 py-0.5 text-xs font-medium transition-colors"
+              style={{
+                background: side === s ? "rgba(48,209,88,0.18)" : "transparent",
+                color: side === s ? "#30d158" : "var(--text-tertiary)",
+                fontFamily: "var(--font-sans)",
+              }}
+            >
+              {s === "raw" ? "Raw" : "Processed"}
+            </button>
+          ))}
+        </div>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio ref={audioRef} src={side === "raw" ? urls.raw : urls.processed} controls preload="none" style={{ height: 30 }} />
+        <button onClick={onStart} title="Re-render preview" style={{ color: "var(--text-tertiary)" }}>
+          <RefreshCw style={{ width: 12, height: 12 }} />
+        </button>
+      </div>
+    );
+  }
+
+  // idle | error
+  return (
+    <button
+      onClick={onStart}
+      className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors self-start"
+      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}
+    >
+      <Wand2 style={{ width: 12, height: 12 }} />
+      {status === "error" ? "Preview failed — retry" : "Preview A/B"}
+    </button>
+  );
+}
+
 interface ClipListProps {
   clips: Clip[];
   onDelete?: (id: string) => void;
   onHoverClip?: (id: string | null) => void;
   onRetryBackup?: (id: string) => void;
+  onPreview?: (id: string) => void;
 }
 
-export default function ClipList({ clips, onDelete, onHoverClip, onRetryBackup }: ClipListProps) {
+export default function ClipList({ clips, onDelete, onHoverClip, onRetryBackup, onPreview }: ClipListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   if (clips.length === 0) return null;
@@ -203,6 +279,9 @@ export default function ClipList({ clips, onDelete, onHoverClip, onRetryBackup }
 
               {/* Transcript row */}
               <TranscriptBox status={status} text={clip.transcript} color={color} />
+
+              {/* A/B preview (raw vs processed) */}
+              <AbPreview audioFileUrl={clip.audioFileUrl} status={clip.previewStatus} onStart={() => onPreview?.(clip.id)} />
             </div>
           );
         })}

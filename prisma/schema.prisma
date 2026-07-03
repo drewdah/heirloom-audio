@@ -128,6 +128,7 @@ model Take {
   transcript        String?   // whisper transcription text
   transcriptStatus  String    @default("pending") // pending | processing | done | error
   processedFileUrl  String?   // local path to FFmpeg-processed audio
+  previewStatus     String    @default("idle") // idle | processing | done | error — A/B preview snippet render
   isActive          Boolean   @default(true)
   recordedAt      DateTime  @default(now())
   createdAt       DateTime  @default(now())

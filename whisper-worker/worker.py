@@ -372,6 +372,69 @@ def _notify_process(chapter_id, processed_takes, error, secret):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# A/B Preview
+# ─────────────────────────────────────────────────────────────────────────────
+
+def handle_preview(job: dict):
+    """Render a short A/B preview: extract a snippet of the original and run the
+    full processing chain on it, writing <stem>_preview_raw.wav (unprocessed) and
+    <stem>_preview.wav (processed) side by side for audition."""
+    take_id   = job.get("takeId")
+    file_path = job.get("filePath")
+    secret    = job.get("secret", "")
+    file_offset     = float(job.get("fileOffset", 0))
+    preview_seconds = float(job.get("previewSeconds", 12))
+
+    if not take_id or not file_path:
+        log.warning("Invalid preview_take job")
+        return
+
+    full_path = file_path if file_path.startswith("/") else os.path.join(UPLOAD_PATH, file_path)
+    if not os.path.exists(full_path):
+        log.error(f"Preview: take file not found: {full_path}")
+        _notify_preview(take_id, "error", "file not found", secret)
+        return
+
+    input_p = Path(full_path)
+    raw_path       = str(input_p.parent / f"{input_p.stem}_preview_raw.wav")
+    processed_path = str(input_p.parent / f"{input_p.stem}_preview.wav")
+
+    try:
+        # Extract a short snippet of the visible region (unprocessed), then run the
+        # exact production chain on it so the A/B reflects real output.
+        snippet_cmd = [
+            "ffmpeg", "-y",
+            "-i", full_path,
+            "-ss", str(file_offset),
+            "-t",  str(preview_seconds),
+            "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le",
+            raw_path,
+        ]
+        log.info(f"Preview: extracting {preview_seconds}s snippet for take {take_id}")
+        r = subprocess.run(snippet_cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"Snippet extract failed:\n{r.stderr[-1000:]}")
+
+        process_take(raw_path, processed_path)
+        log.info(f"Preview ready for take {take_id}")
+        _notify_preview(take_id, "done", None, secret)
+    except Exception as e:
+        log.error(f"Preview failed for take {take_id}: {e}")
+        _notify_preview(take_id, "error", str(e), secret)
+
+
+def _notify_preview(take_id, status, error, secret):
+    url = f"{APP_CALLBACK}/api/takes/{take_id}/preview/callback"
+    payload = {"secret": secret, "status": status}
+    if error:
+        payload["error"] = error
+    try:
+        requests.post(url, json=payload, timeout=30)
+    except Exception as e:
+        log.error(f"Failed to notify app of preview result: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # M4B Export
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -622,6 +685,8 @@ def process_job(job: dict):
         handle_process_chapter(job)
     elif job_type == "export_book":
         handle_export_book(job)
+    elif job_type == "preview_take":
+        handle_preview(job)
     else:
         handle_transcribe(job)
 
