@@ -234,13 +234,17 @@ export default function MicCheckModal({ open, onClose }: Props) {
           )}
 
           {step === "recording" && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold"
-                style={{ background: "rgba(220,38,38,0.15)", border: "2px solid #ef4444", color: "#ef4444", fontFamily: "var(--font-mono)" }}>
-                {countdown}
+            <div className="flex flex-col items-center gap-4 py-2">
+              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "#ef4444", fontFamily: "var(--font-sans)" }}>
+                <span className="inline-block rounded-full animate-pulse" style={{ width: 9, height: 9, background: "#ef4444" }} />
+                Recording… {countdown}s
               </div>
+              {/* Keep the phrase on screen so the narrator has something to read. */}
+              <p className="text-lg px-4 py-4 rounded-lg text-center" style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-primary)", fontFamily: "var(--font-serif, Georgia, serif)", fontStyle: "italic", lineHeight: 1.5 }}>
+                &ldquo;{SAMPLE_SENTENCE}&rdquo;
+              </p>
               <p className="text-sm text-center" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-sans)" }}>
-                Recording… read the sentence out loud.
+                Read this out loud in your normal speaking voice.
               </p>
             </div>
           )}
