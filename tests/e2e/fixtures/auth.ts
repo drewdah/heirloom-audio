@@ -72,6 +72,16 @@ export const test = base.extend<{ seedData: SeedData }>({
       },
     ]);
 
+    // Mark Mic Check as already calibrated. The Navbar auto-opens the Mic Check
+    // modal (a full-screen `fixed inset-0` overlay) on first launch until
+    // localStorage["heirloom-mic-calibrated"] is set. Fresh browser contexts have
+    // empty localStorage, so without this the modal covers every page and
+    // intercepts all clicks — every page.click times out (~60s), ballooning the
+    // suite. Set it before any app JS runs so the modal never auto-opens in tests.
+    await context.addInitScript(() => {
+      window.localStorage.setItem("heirloom-mic-calibrated", "true");
+    });
+
     await use(page);
   },
 });
