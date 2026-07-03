@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Cloud, CloudOff, RefreshCw } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 
 // Must stay in sync with the Clip interface in ChapterTimeline.tsx
@@ -12,6 +12,7 @@ interface Clip {
   fileSizeBytes: number | null;
   transcript: string | null;
   transcriptStatus: string;
+  backupStatus?: string;  // pending | uploading | backed_up | failed
   regionStart: number;
   regionEnd: number;
   recordedAt: string;
@@ -41,13 +42,56 @@ function formatDateTime(iso: string): string {
   });
 }
 
+function BackupBadge({ status, onRetry }: { status?: string; onRetry?: () => void }) {
+  if (status === "backed_up") {
+    return (
+      <span
+        className="flex items-center gap-1 text-xs"
+        title="Original backed up to Google Drive"
+        style={{ color: "#30d158", fontFamily: "var(--font-sans)" }}
+      >
+        <Cloud style={{ width: 12, height: 12 }} /> Backed up
+      </span>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <button
+        onClick={onRetry}
+        className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors"
+        title="Backup failed — click to retry"
+        style={{
+          background: "rgba(220,38,38,0.15)",
+          border: "1px solid rgba(220,38,38,0.4)",
+          color: "#ef4444",
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        <CloudOff style={{ width: 12, height: 12 }} /> Not backed up
+        <RefreshCw style={{ width: 11, height: 11 }} />
+      </button>
+    );
+  }
+  // pending | uploading | undefined
+  return (
+    <span
+      className="flex items-center gap-1 text-xs"
+      title="Backing up original to Google Drive…"
+      style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)" }}
+    >
+      <Cloud style={{ width: 12, height: 12 }} className="animate-pulse" /> Backing up…
+    </span>
+  );
+}
+
 interface ClipListProps {
   clips: Clip[];
   onDelete?: (id: string) => void;
   onHoverClip?: (id: string | null) => void;
+  onRetryBackup?: (id: string) => void;
 }
 
-export default function ClipList({ clips, onDelete, onHoverClip }: ClipListProps) {
+export default function ClipList({ clips, onDelete, onHoverClip, onRetryBackup }: ClipListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   if (clips.length === 0) return null;
@@ -123,6 +167,9 @@ export default function ClipList({ clips, onDelete, onHoverClip }: ClipListProps
 
                   {/* Recorded at */}
                   <MetaChip label="Recorded" value={formatDateTime(clip.recordedAt)} />
+
+                  {/* Off-site backup status */}
+                  <BackupBadge status={clip.backupStatus} onRetry={() => onRetryBackup?.(clip.id)} />
 
                   {/* Delete */}
                   {onDelete && (

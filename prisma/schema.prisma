@@ -116,6 +116,9 @@ model Take {
   audioFileUrl    String?
   audioDriveId    String?
   audioFileName   String?
+  // Off-site backup of the original to Google Drive
+  backupStatus     String    @default("pending") // pending | uploading | backed_up | failed
+  backupError      String?   // last backup failure message, for surfacing/retry
   fileSizeBytes   Int?
   durationSeconds Float?
   // Region this take replaces in the master recording (null = full replacement)
