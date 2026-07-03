@@ -14,6 +14,10 @@ vi.mock("@/lib/google-drive", () => ({
   uploadAudioToDrive: vi.fn(() => Promise.resolve({ fileId: "drive-xyz" })),
 }));
 
+// The tracked Drive backup has its own test suite; stub it here so it doesn't
+// run real filesystem/DB work in the background during these route tests.
+vi.mock("@/lib/take-backup", () => ({ backupTakeInBackground: vi.fn() }));
+
 // The atomic write is exercised in its own unit test; here we drive the route's
 // success/failure branches by toggling what the mocked writer does.
 const atomic = vi.hoisted(() => ({ impl: async (_p: string, _d: Buffer) => {} }));

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { uploadAudioToDrive } from "@/lib/google-drive";
+import { backupTakeInBackground } from "@/lib/take-backup";
 import { writeFileAtomic } from "@/lib/atomic-file";
 import { join } from "path";
 
@@ -75,6 +75,7 @@ export async function POST(
       audioFileUrl: null,
       audioDriveId: null,
       audioFileName: null,
+      backupStatus: "pending",
       fileSizeBytes: file.size,
       durationSeconds,
       regionStart,
@@ -109,27 +110,11 @@ export async function POST(
     },
   });
 
-  // ── Step 2: Upload to Drive in background ────────────────────────────────
-  const orderStr = String(chapter.order).padStart(2, "0");
-  const slug = chapter.title.replace(/[^a-zA-Z0-9]/g, "-").slice(0, 30);
-  const driveName = `${orderStr}-${slug}-take${takeNumber}.${ext}`;
-
-  // Fire and forget — update DB when done
-  uploadAudioToDrive(session.user.id, chapter.bookId, driveName, buffer, baseType)
-    .then(async ({ fileId }) => {
-      await prisma.take.update({
-        where: { id: take.id },
-        data: {
-          audioDriveId: fileId,
-          audioFileName: driveName,
-          // Keep local URL for fast serving — switch to stream URL once Drive is done
-          audioFileUrl: localUrl,
-        },
-      });
-    })
-    .catch((err) => {
-      console.error("[takes] Drive upload failed (non-fatal):", err);
-    });
+  // ── Step 2: Back up the original to Drive in the background ──────────────
+  // Tracked + retryable via take.backupStatus. Failures are recorded on the
+  // take (and retryable from the UI / the backup endpoint) instead of being
+  // silently swallowed, so the user can always tell what is safely backed up.
+  backupTakeInBackground(take.id);
 
   return NextResponse.json({ take });
 }

@@ -28,6 +28,7 @@ export async function GET(
       id: take.id,
       transcript: take.transcript,
       transcriptStatus: take.transcriptStatus,
+      backupStatus: take.backupStatus,
     },
   });
 }

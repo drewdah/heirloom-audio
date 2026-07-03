@@ -16,6 +16,7 @@ interface Clip {
   label: string;
   audioFileUrl: string | null;
   audioDriveId: string | null;
+  backupStatus: string;  // pending | uploading | backed_up | failed
   durationSeconds: number | null;  // total file duration (never changes)
   regionStart: number;   // timeline position in seconds
   regionEnd: number;     // regionStart + visible duration
@@ -77,6 +78,7 @@ export default function ChapterTimeline({
       fileSizeBytes: c.fileSizeBytes ?? null,
       transcript: c.transcript ?? null,
       transcriptStatus: c.transcriptStatus ?? "pending",
+      backupStatus: c.backupStatus ?? "pending",
       processedFileUrl: c.processedFileUrl ?? null,
       }))
       .sort((a, b) => a.regionStart - b.regionStart)
@@ -253,6 +255,7 @@ export default function ChapterTimeline({
             fileSizeBytes: take.fileSizeBytes ?? null,
             transcript: take.transcript ?? null,
             transcriptStatus: take.transcriptStatus ?? "pending",
+            backupStatus: take.backupStatus ?? "pending",
           };
 
           // Fire transcription in background — don't await
@@ -385,13 +388,13 @@ export default function ChapterTimeline({
           pollTimersRef.current.delete(takeId);
           setClips(prev => prev.map(c =>
             c.id === takeId
-              ? { ...c, transcript: take.transcript, transcriptStatus: take.transcriptStatus }
+              ? { ...c, transcript: take.transcript, transcriptStatus: take.transcriptStatus, backupStatus: take.backupStatus ?? c.backupStatus }
               : c
           ));
         } else if (take.transcriptStatus === "processing") {
           // Still going — update status indicator
           setClips(prev => prev.map(c =>
-            c.id === takeId ? { ...c, transcriptStatus: "processing" } : c
+            c.id === takeId ? { ...c, transcriptStatus: "processing", backupStatus: take.backupStatus ?? c.backupStatus } : c
           ));
         }
       } catch { /* ignore */ }
@@ -461,6 +464,7 @@ export default function ChapterTimeline({
         fileSizeBytes: take.fileSizeBytes ?? null,
         transcript: take.transcript ?? null,
         transcriptStatus: take.transcriptStatus ?? "pending",
+        backupStatus: take.backupStatus ?? "pending",
         processedFileUrl: take.processedFileUrl ?? null,
       };
 
@@ -479,6 +483,19 @@ export default function ChapterTimeline({
   }, [chapterId, clips, startPollingTranscript, onTakeAdded]);
 
   // ── Delete clip ────────────────────────────────────────────────────────
+  const retryBackup = useCallback(async (clipId: string) => {
+    setClips(prev => prev.map(c => c.id === clipId ? { ...c, backupStatus: "uploading" } : c));
+    try {
+      const res = await fetch(`/api/takes/${clipId}/backup`, { method: "POST" });
+      const { take } = await res.json();
+      setClips(prev => prev.map(c => c.id === clipId
+        ? { ...c, backupStatus: take?.backupStatus ?? "failed", audioDriveId: take?.audioDriveId ?? c.audioDriveId }
+        : c));
+    } catch {
+      setClips(prev => prev.map(c => c.id === clipId ? { ...c, backupStatus: "failed" } : c));
+    }
+  }, []);
+
   const deleteClip = (clipId: string) => {
     setClips(prev => prev.filter(c => c.id !== clipId));
     fetch(`/api/chapters/${chapterId}/takes/${clipId}`, { method: "DELETE" }).catch(() => {});
@@ -920,7 +937,7 @@ export default function ChapterTimeline({
       </div>
 
       {/* ── Clip list with transcripts ────────────────────────────────── */}
-      <ClipList clips={clips} onDelete={deleteClip} onHoverClip={setHoveredClipId} />
+      <ClipList clips={clips} onDelete={deleteClip} onHoverClip={setHoveredClipId} onRetryBackup={retryBackup} />
     </div>
   );
 }
