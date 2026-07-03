@@ -15,6 +15,9 @@ model User {
   image               String?
   googleId            String?   @unique
   driveRootFolderId   String?
+  // Audio processing preferences set via the Mic Check wizard
+  audioCompression    String    @default("recommended") // gentle | recommended | strong
+  audioDenoise        Boolean   @default(true)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   books               Book[]

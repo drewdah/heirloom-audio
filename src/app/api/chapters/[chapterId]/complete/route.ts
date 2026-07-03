@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureOriginalsLocal } from "@/lib/take-restore";
+import { getUserAudioSettings } from "@/lib/audio-settings";
 import { createClient } from "redis";
 import { revalidatePath } from "next/cache";
 
@@ -58,10 +59,12 @@ export async function PATCH(
     });
 
     if (takesForWorker.length > 0) {
+      const settings = await getUserAudioSettings(session.user.id);
       const job = {
         type: "process_chapter",
         chapterId,
         takes: takesForWorker,
+        settings,
         secret: process.env.NEXTAUTH_SECRET ?? "",
       };
       try {

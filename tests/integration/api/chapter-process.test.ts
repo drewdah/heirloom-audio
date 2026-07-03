@@ -55,6 +55,8 @@ describe("POST /api/chapters/[chapterId]/process", () => {
     const job = JSON.parse(redisPushed.jobs[0]);
     expect(job.type).toBe("process_chapter");
     expect(job.takes[0].filePath).toBe("/app/public/takes/take-abc123.webm");
+    // Carries the user's audio settings for the parameterized chain
+    expect(job.settings).toEqual({ compression: "recommended", denoise: true });
   });
 
   it("handles multiple takes ordered by regionStart", async () => {

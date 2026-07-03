@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureLocalOriginal } from "@/lib/take-restore";
+import { getUserAudioSettings } from "@/lib/audio-settings";
 import { createClient } from "redis";
 
 export const dynamic = "force-dynamic";
 
-const PREVIEW_SECONDS = 12;
+const MAX_PREVIEW_SECONDS = 120; // cap so a very long take doesn't produce a huge preview render
 
 function stemOf(audioFileUrl: string): string {
   return audioFileUrl.split("/").pop()!.replace(/\.[^.]+$/, "");
@@ -37,13 +38,22 @@ export async function POST(
 
   await prisma.take.update({ where: { id: takeId }, data: { previewStatus: "processing" } });
 
+  const settings = await getUserAudioSettings(session.user.id);
   const basename = take.audioFileUrl.split("/").pop()!;
+  // Preview the take's full visible region (not a fixed snippet) so it doesn't cut
+  // off words mid-sentence; +0.5s avoids clipping the last word.
+  const visibleDur =
+    take.regionEnd != null && take.regionStart != null
+      ? take.regionEnd - take.regionStart
+      : take.durationSeconds ?? 0;
+  const previewSeconds = visibleDur > 0 ? Math.min(MAX_PREVIEW_SECONDS, visibleDur + 0.5) : MAX_PREVIEW_SECONDS;
   const job = {
     type: "preview_take",
     takeId,
     filePath: `/app/public/takes/${basename}`,
     fileOffset: take.fileOffset,
-    previewSeconds: PREVIEW_SECONDS,
+    previewSeconds,
+    settings,
     secret: process.env.NEXTAUTH_SECRET ?? "",
   };
 
