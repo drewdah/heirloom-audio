@@ -94,20 +94,22 @@ function previewUrls(audioFileUrl: string | null) {
 function AbPreview({ audioFileUrl, status, onStart }: { audioFileUrl: string | null; status?: string; onStart: () => void }) {
   const urls = previewUrls(audioFileUrl);
   const [side, setSide] = useState<"raw" | "processed">("processed");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rawRef = useRef<HTMLAudioElement | null>(null);
+  const procRef = useRef<HTMLAudioElement | null>(null);
   if (!urls) return null;
 
-  // Toggle raw⇄processed in place, preserving playback position for a true A/B.
-  const switchSide = (next: "raw" | "processed") => {
-    const a = audioRef.current;
-    if (next === side || !a) { setSide(next); return; }
-    const t = a.currentTime;
-    const wasPlaying = !a.paused;
+  // Both snippets are preloaded and rendered; switching just reveals the other
+  // (already-loaded) element synced to the same position — instant, and play
+  // works the first time (no src swap / reload).
+  const selectSide = (next: "raw" | "processed") => {
+    if (next === side) return;
+    const from = side === "raw" ? rawRef.current : procRef.current;
+    const to = next === "raw" ? rawRef.current : procRef.current;
+    if (from && to) {
+      to.currentTime = from.currentTime;
+      if (!from.paused) { from.pause(); to.play().catch(() => {}); }
+    }
     setSide(next);
-    a.src = next === "raw" ? urls.raw : urls.processed;
-    a.load();
-    a.currentTime = t;
-    if (wasPlaying) a.play().catch(() => {});
   };
 
   if (status === "processing") {
@@ -125,7 +127,7 @@ function AbPreview({ audioFileUrl, status, onStart }: { audioFileUrl: string | n
           {(["raw", "processed"] as const).map((s) => (
             <button
               key={s}
-              onClick={() => switchSide(s)}
+              onClick={() => selectSide(s)}
               className="px-2.5 py-0.5 text-xs font-medium transition-colors"
               style={{
                 background: side === s ? "rgba(48,209,88,0.18)" : "transparent",
@@ -138,7 +140,9 @@ function AbPreview({ audioFileUrl, status, onStart }: { audioFileUrl: string | n
           ))}
         </div>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <audio ref={audioRef} src={side === "raw" ? urls.raw : urls.processed} controls preload="none" style={{ height: 30 }} />
+        <audio ref={rawRef} src={urls.raw} controls preload="auto" style={{ height: 30, display: side === "raw" ? "block" : "none" }} />
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio ref={procRef} src={urls.processed} controls preload="auto" style={{ height: 30, display: side === "processed" ? "block" : "none" }} />
         <button onClick={onStart} title="Re-render preview" style={{ color: "var(--text-tertiary)" }}>
           <RefreshCw style={{ width: 12, height: 12 }} />
         </button>
