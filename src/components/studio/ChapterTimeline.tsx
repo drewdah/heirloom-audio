@@ -100,6 +100,10 @@ export default function ChapterTimeline({
     if (typeof window === "undefined") return 1.0;
     return parseFloat(localStorage.getItem("heirloom-mic-gain") ?? "1.0");
   });
+  const [agc, setAgc] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("heirloom-agc") !== "false";
+  });
 
   // ── Refs ───────────────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -197,7 +201,9 @@ export default function ChapterTimeline({
 
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 },
+        // AGC on by default keeps a healthy input level for non-technical narrators;
+        // manual micGain (below) applies on top and is the override when AGC is off.
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: agc, sampleRate: 48000 },
       });
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus" : "audio/webm";
@@ -603,6 +609,13 @@ export default function ChapterTimeline({
     };
     window.addEventListener("heirloom:mic-gain", handler);
     return () => window.removeEventListener("heirloom:mic-gain", handler);
+  }, []);
+
+  // Listen for AGC toggle dispatched by the AudioSettings modal
+  useEffect(() => {
+    const handler = (e: Event) => setAgc((e as CustomEvent<boolean>).detail);
+    window.addEventListener("heirloom:agc", handler);
+    return () => window.removeEventListener("heirloom:agc", handler);
   }, []);
 
   // ── Zoom ───────────────────────────────────────────────────────────────

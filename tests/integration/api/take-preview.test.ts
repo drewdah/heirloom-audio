@@ -61,6 +61,8 @@ describe("take preview endpoints", () => {
     const job = JSON.parse(redisPushed.jobs[0]);
     expect(job.type).toBe("preview_take");
     expect(job.takeId).toBe(t.id);
+    // Covers the take's full visible region (regionEnd 10.5 - regionStart 0 + 0.5), not a fixed snippet
+    expect(job.previewSeconds).toBeCloseTo(11, 1);
   });
 
   it("POST returns 409 when the original can't be made available", async () => {
