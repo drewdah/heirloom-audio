@@ -17,6 +17,7 @@ interface Clip {
   audioFileUrl: string | null;
   audioDriveId: string | null;
   backupStatus: string;  // pending | uploading | backed_up | failed
+  previewStatus: string;  // idle | processing | done | error
   durationSeconds: number | null;  // total file duration (never changes)
   regionStart: number;   // timeline position in seconds
   regionEnd: number;     // regionStart + visible duration
@@ -79,6 +80,7 @@ export default function ChapterTimeline({
       transcript: c.transcript ?? null,
       transcriptStatus: c.transcriptStatus ?? "pending",
       backupStatus: c.backupStatus ?? "pending",
+      previewStatus: c.previewStatus ?? "idle",
       processedFileUrl: c.processedFileUrl ?? null,
       }))
       .sort((a, b) => a.regionStart - b.regionStart)
@@ -256,6 +258,7 @@ export default function ChapterTimeline({
             transcript: take.transcript ?? null,
             transcriptStatus: take.transcriptStatus ?? "pending",
             backupStatus: take.backupStatus ?? "pending",
+            previewStatus: take.previewStatus ?? "idle",
           };
 
           // Fire transcription in background — don't await
@@ -465,6 +468,7 @@ export default function ChapterTimeline({
         transcript: take.transcript ?? null,
         transcriptStatus: take.transcriptStatus ?? "pending",
         backupStatus: take.backupStatus ?? "pending",
+        previewStatus: take.previewStatus ?? "idle",
         processedFileUrl: take.processedFileUrl ?? null,
       };
 
@@ -483,6 +487,34 @@ export default function ChapterTimeline({
   }, [chapterId, clips, startPollingTranscript, onTakeAdded]);
 
   // ── Delete clip ────────────────────────────────────────────────────────
+  const previewTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  const startPreview = useCallback(async (clipId: string) => {
+    setClips(prev => prev.map(c => c.id === clipId ? { ...c, previewStatus: "processing" } : c));
+    try {
+      const res = await fetch(`/api/takes/${clipId}/preview`, { method: "POST" });
+      if (!res.ok) throw new Error("preview request failed");
+    } catch {
+      setClips(prev => prev.map(c => c.id === clipId ? { ...c, previewStatus: "error" } : c));
+      return;
+    }
+    const existing = previewTimersRef.current.get(clipId);
+    if (existing) clearInterval(existing);
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/takes/${clipId}/preview`);
+        if (!res.ok) return;
+        const { previewStatus } = await res.json();
+        if (previewStatus === "done" || previewStatus === "error") {
+          clearInterval(timer);
+          previewTimersRef.current.delete(clipId);
+          setClips(prev => prev.map(c => c.id === clipId ? { ...c, previewStatus } : c));
+        }
+      } catch { /* ignore */ }
+    }, 2000);
+    previewTimersRef.current.set(clipId, timer);
+  }, []);
+
   const retryBackup = useCallback(async (clipId: string) => {
     setClips(prev => prev.map(c => c.id === clipId ? { ...c, backupStatus: "uploading" } : c));
     try {
@@ -937,7 +969,7 @@ export default function ChapterTimeline({
       </div>
 
       {/* ── Clip list with transcripts ────────────────────────────────── */}
-      <ClipList clips={clips} onDelete={deleteClip} onHoverClip={setHoveredClipId} onRetryBackup={retryBackup} />
+      <ClipList clips={clips} onDelete={deleteClip} onHoverClip={setHoveredClipId} onRetryBackup={retryBackup} onPreview={startPreview} />
     </div>
   );
 }
