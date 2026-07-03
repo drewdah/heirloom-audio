@@ -69,7 +69,14 @@ test.describe("Bookshelf", () => {
     // The dialog has an <h2>Delete Book</h2> and a <button>Delete Book</button>
     // Use getByRole to be unambiguous
     await expect(page.getByRole("heading", { name: "Delete Book" })).toBeVisible();
-    await page.getByRole("button", { name: "Delete Book" }).click();
+
+    // Delete is gated behind type-to-confirm — the button stays disabled until
+    // the exact book title is typed.
+    const deleteBtn = page.getByRole("button", { name: "Delete Book" });
+    await expect(deleteBtn).toBeDisabled();
+    await page.getByPlaceholder("To Delete").fill("To Delete");
+    await expect(deleteBtn).toBeEnabled();
+    await deleteBtn.click();
 
     await expect(page).toHaveURL("/shelf", { timeout: 10_000 });
     await expect(page.locator("[data-book-id]")).toHaveCount(0, { timeout: 5_000 });
