@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureOriginalsLocal } from "@/lib/take-restore";
 import { createClient } from "redis";
 import { revalidatePath } from "next/cache";
 
@@ -30,7 +31,13 @@ export async function PATCH(
 
   if (newValue) {
     // ── Marking complete → kick off processing ───────────────────────────
-    const takesForWorker = chapter.takes
+    // Restore any originals lost from local disk (pull from Drive) first, so
+    // processing runs from the original recording.
+    const { available, restoredCount } = await ensureOriginalsLocal(chapter.takes, session.user.id);
+    if (restoredCount > 0)
+      console.log(`[complete] restored ${restoredCount} original(s) from Drive for chapter ${chapterId}`);
+
+    const takesForWorker = available
       .filter((t) => t.audioFileUrl)
       .map((t) => ({
         takeId: t.id,

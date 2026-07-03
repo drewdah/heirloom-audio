@@ -294,6 +294,16 @@ export async function renameBookFolder(userId: string, bookId: string, newTitle:
   }).catch(() => {});
 }
 
+/** Download a Drive file's raw bytes by id — used to restore a lost local original. */
+export async function downloadDriveFile(userId: string, fileId: string): Promise<Buffer> {
+  const drive = await getDriveClient(userId);
+  const res = await drive.files.get(
+    { fileId, alt: "media" },
+    { responseType: "arraybuffer" }
+  );
+  return Buffer.from(res.data as ArrayBuffer);
+}
+
 /** Delete a file from Drive (silently ignores errors) */
 export async function deleteDriveFile(userId: string, fileId: string): Promise<void> {
   const drive = await getDriveClient(userId).catch(() => null);

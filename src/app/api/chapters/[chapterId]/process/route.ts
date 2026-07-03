@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureOriginalsLocal } from "@/lib/take-restore";
 import { createClient } from "redis";
 
 export const dynamic = "force-dynamic";
@@ -36,8 +37,14 @@ export async function POST(
   if (chapter.takes.length === 0)
     return NextResponse.json({ error: "No active takes to process" }, { status: 400 });
 
-  // Build take list for the worker — only takes with a local file
-  const takesForWorker = chapter.takes
+  // Restore any originals whose local copy was lost (pull from Drive) so
+  // re-processing always runs from the original recording, even after disk loss.
+  const { available, restoredCount } = await ensureOriginalsLocal(chapter.takes, session.user.id);
+  if (restoredCount > 0)
+    console.log(`[process] restored ${restoredCount} original(s) from Drive for chapter ${chapterId}`);
+
+  // Build take list for the worker — only takes with a local file present
+  const takesForWorker = available
     .filter((t) => t.audioFileUrl)
     .map((t) => ({
       takeId: t.id,

@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
 import { createTestUser, createTestBook, createTestChapter, createTestTake } from "../../helpers/fixtures";
+import { writeFile, mkdir, rm } from "fs/promises";
+import { join } from "path";
 
 const mockSession = vi.hoisted(() => ({ value: null as any }));
 vi.mock("@/lib/auth", () => ({
@@ -20,6 +22,16 @@ vi.mock("redis", () => ({
 function setAuth(id: string) { mockSession.value = { user: { id, email: "t@t.com", name: "T" } }; }
 let userId: string, bookId: string;
 
+// The process route restores a missing original from Drive (or drops the take);
+// give these takes a real local file so they're processed as-is.
+const createdFiles: string[] = [];
+async function writeLocal(url: string) {
+  await mkdir(join(process.cwd(), "public", "takes"), { recursive: true });
+  const p = join(process.cwd(), "public", url.replace(/^\//, ""));
+  await writeFile(p, Buffer.from("audio"));
+  createdFiles.push(p);
+}
+
 describe("POST /api/chapters/[chapterId]/process", () => {
   beforeEach(async () => {
     redisPushed.jobs = [];
@@ -28,10 +40,13 @@ describe("POST /api/chapters/[chapterId]/process", () => {
     setAuth(userId);
   });
 
+  afterEach(async () => { await Promise.all(createdFiles.splice(0).map((p) => rm(p, { force: true }))); });
+
   it("queues a processing job with correct take paths", async () => {
     const ch = await createTestChapter(bookId);
     // Route uses .split("/").pop() so any URL prefix works
     await createTestTake(ch.id, { audioFileUrl: "/takes/take-abc123.webm", durationSeconds: 15, regionStart: 0, regionEnd: 15 });
+    await writeLocal("/takes/take-abc123.webm");
     const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
     const res = await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) });
     expect(res.status).toBe(200);
@@ -46,6 +61,8 @@ describe("POST /api/chapters/[chapterId]/process", () => {
     const ch = await createTestChapter(bookId);
     await createTestTake(ch.id, { label: "T2", audioFileUrl: "/takes/second.webm", regionStart: 10, regionEnd: 20, durationSeconds: 10 });
     await createTestTake(ch.id, { label: "T1", audioFileUrl: "/takes/first.webm", regionStart: 0, regionEnd: 10, durationSeconds: 10 });
+    await writeLocal("/takes/second.webm");
+    await writeLocal("/takes/first.webm");
     const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
     const res = await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) });
     expect(res.status).toBe(200);
@@ -57,6 +74,7 @@ describe("POST /api/chapters/[chapterId]/process", () => {
   it("marks chapter processStatus as processing", async () => {
     const ch = await createTestChapter(bookId);
     await createTestTake(ch.id);
+    await writeLocal("/takes/test-take-abc123.webm");
     const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
     await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) });
     expect((await prisma.chapter.findUnique({ where: { id: ch.id } }))?.processStatus).toBe("processing");
