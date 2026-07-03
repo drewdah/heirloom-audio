@@ -100,23 +100,19 @@ def _notify_transcribe(take_id, chapter_id, text, error, secret):
 # FFmpeg audio processing
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Simple linear filter chain (no named pads — safe for -af):
-#   1. highpass     — roll off below 80 Hz (rumble, handling noise)
-#   2. lowpass      — roll off above 16 kHz (hiss)
-#   3. equalizer x2 — cut 300 Hz muddiness, boost 2.5 kHz presence
-#   4. acompressor  — gentle voice compression (3:1, tame peaks)
-#   5. loudnorm     — per-take level pass; true cross-book normalization at M4B export
-#
-# De-esser is implemented separately via -filter_complex because it requires
-# named pads (asplit → sidechain → sidechaincompress) which can't be used in -af.
-SIMPLE_FILTER_NO_NORM = (
-    "highpass=f=80,"
-    "lowpass=f=16000,"
-    "equalizer=f=300:t=h:w=200:g=-3,"   # cut 300 Hz muddiness (200 Hz bandwidth)
-    "equalizer=f=2500:t=h:w=1500:g=2,"  # boost 2.5 kHz presence (1500 Hz bandwidth)
-    "acompressor=threshold=-18dB:ratio=3:attack=5:release=100"
-    # no makeup gain — avoids pushing peaks toward clip before loudnorm
-)
+# ── Loudness / leveling configuration ────────────────────────────────────────
+# One authoritative loudness pass is applied to the whole book at export
+# (measure_loudnorm → apply). Individual takes are only *gross-leveled* to a
+# consistent RMS with a single linear gain — this avoids running integrated
+# loudnorm twice (which flattened take-to-take dynamics) and, crucially, avoids
+# gated-LUFS measurement on short takes where it's unreliable. A single gain
+# also preserves each take's internal dynamics.
+TAKE_RMS_TARGET_DB   = -20.0   # per-take mean (RMS) leveling target
+TAKE_PEAK_CEILING_DB = -1.0    # gain is clamped so peaks never exceed this (no clipping)
+
+BOOK_LOUDNORM_I   = -19        # LUFS — authoritative book loudness (Audible-ish, ACX-legal)
+BOOK_LOUDNORM_TP  = -3.0       # dBTP true-peak ceiling
+BOOK_LOUDNORM_LRA = 11         # target loudness range
 
 # Voice-evenness (compression) presets chosen in Mic Check.
 COMPRESSION_PRESETS = {
@@ -137,21 +133,29 @@ def eq_compress_filter(compression: str) -> str:
     )
 
 # De-esser filter_complex graph — tames sibilance using a sidechain compressor
-# driven by a narrow boost on the 7.5 kHz band.
+# driven by a narrow boost on the sibilance band. Tuned gently to target true
+# harsh "s/sh" energy without dulling normal consonants into a lisp:
+#   • narrow the sidechain boost to ~6–7.5 kHz (w=1500, centered 6.8 kHz) so it
+#     tracks sibilance, not the broad 6–9 kHz consonant region
+#   • boost 8 dB (was 10) — enough to drive the sidechain, not overcook it
+#   • threshold 0.08 (~-22 dBFS, was 0.05/~-26) — engages only on stronger sibilance
+#   • ratio 2.5 (was 4) and level_sc 0.4 (was 0.5) — gentler reduction
 DEESSER_FILTER_COMPLEX = (
     "[0:a]asplit=2[main][sc];"
-    "[sc]equalizer=f=7500:t=h:w=3000:g=10[sc_boosted];"  # 3 kHz wide boost at 7.5 kHz to drive the sidechain
-    "[main][sc_boosted]sidechaincompress=threshold=0.05:ratio=4:attack=1:release=50:level_sc=0.5[deessed]"
-    # threshold=0.05 (~-26 dB) engages only on genuine sibilance, not all audio
+    "[sc]equalizer=f=6800:t=h:w=1500:g=8[sc_boosted];"
+    "[main][sc_boosted]sidechaincompress=threshold=0.08:ratio=2.5:attack=1:release=50:level_sc=0.4[deessed]"
 )
 
 
 def measure_loudnorm(input_path: str) -> dict:
-    """Run loudnorm in analysis mode and return measured stats for pass 2."""
+    """Run loudnorm in analysis mode and return measured stats for pass 2.
+
+    Analysis targets match the book apply pass so target_offset is meaningful.
+    """
     cmd = [
         "ffmpeg", "-y",
         "-i", input_path,
-        "-af", "loudnorm=I=-20:TP=-3.0:LRA=11:print_format=json",
+        "-af", f"loudnorm=I={BOOK_LOUDNORM_I}:TP={BOOK_LOUDNORM_TP}:LRA={BOOK_LOUDNORM_LRA}:print_format=json",
         "-f", "null", "-",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -165,16 +169,36 @@ def measure_loudnorm(input_path: str) -> dict:
     return json.loads(stderr[start:end])
 
 
+def measure_volume(input_path: str) -> tuple[float, float]:
+    """Return (mean_volume_db, max_volume_db) via ffmpeg volumedetect.
+
+    Unlike integrated LUFS, volumedetect has no gating window, so it stays
+    reliable on very short takes — used for per-take gross leveling.
+    """
+    cmd = ["ffmpeg", "-y", "-i", input_path, "-af", "volumedetect", "-f", "null", "-"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    mean_db = max_db = None
+    for line in result.stderr.splitlines():
+        if "mean_volume:" in line:
+            mean_db = float(line.split("mean_volume:")[1].strip().split()[0])
+        elif "max_volume:" in line:
+            max_db = float(line.split("max_volume:")[1].strip().split()[0])
+    if mean_db is None or max_db is None:
+        raise RuntimeError(f"volumedetect produced no levels.\n{result.stderr[-2000:]}")
+    return mean_db, max_db
+
+
 def process_take(input_path: str, output_path: str, settings: dict | None = None) -> None:
     """Run the full FFmpeg filter chain on a single take file.
 
     settings: {"compression": "gentle|recommended|strong", "denoise": bool}
     Pass order:
       1. Noise reduction  — anlmdn (optional, per settings)
-      2. De-esser         — sidechain compressor on 7.5 kHz band (filter_complex)
+      2. De-esser         — sidechain compressor on the sibilance band (filter_complex)
       3. EQ + dynamics    — highpass, lowpass, EQ, acompressor (evenness per settings)
-      4. loudnorm pass 1  — measure integrated loudness, true peak, LRA
-      5. loudnorm pass 2  — apply linear gain correction using measured stats
+      4. Level analysis   — volumedetect (mean + peak); reliable on short takes
+      5. Gross level      — one clamped linear gain to a consistent RMS target
+                            (the authoritative loudness pass runs once at book export)
     """
     settings = settings or {}
     compression = settings.get("compression", "recommended")
@@ -245,34 +269,35 @@ def process_take(input_path: str, output_path: str, settings: dict | None = None
             if r2.returncode != 0:
                 raise RuntimeError(f"EQ pass failed:\n{r2.stderr[-2000:]}")
 
-            # Pass 4 — loudnorm analysis (measure integrated loudness)
-            log.info(f"FFmpeg pass 4 (loudnorm analysis): {eq_path}")
-            stats = measure_loudnorm(eq_path)
-            log.info(f"loudnorm stats: I={stats.get('input_i')} TP={stats.get('input_tp')} LRA={stats.get('input_lra')}")
+            # Pass 4 — level analysis (mean + peak). volumedetect stays reliable
+            # on short takes, unlike gated integrated LUFS.
+            log.info(f"FFmpeg pass 4 (level analysis): {eq_path}")
+            mean_db, max_db = measure_volume(eq_path)
 
-            # Pass 5 — loudnorm correction using measured values (linear mode = no distortion)
-            measured_filter = (
-                f"loudnorm=I=-20:TP=-3.0:LRA=11"
-                f":measured_I={stats['input_i']}"
-                f":measured_TP={stats['input_tp']}"
-                f":measured_LRA={stats['input_lra']}"
-                f":measured_thresh={stats['input_thresh']}"
-                f":offset={stats['target_offset']}"
-                f":linear=true"
+            # Pass 5 — gross level with a single linear gain to hit the RMS target,
+            # clamped so the gain can never push peaks past the ceiling (no clip).
+            # One gain preserves the take's internal dynamics; the authoritative
+            # loudness pass runs once over the whole book at export.
+            desired_gain  = TAKE_RMS_TARGET_DB - mean_db
+            max_safe_gain = TAKE_PEAK_CEILING_DB - max_db
+            gain_db = min(desired_gain, max_safe_gain)
+            log.info(
+                f"levels: mean={mean_db}dB max={max_db}dB → gain={gain_db:.2f}dB "
+                f"(rms_target={TAKE_RMS_TARGET_DB}, peak_ceiling={TAKE_PEAK_CEILING_DB})"
             )
-            cmd_norm = [
+            cmd_level = [
                 "ffmpeg", "-y",
                 "-i", eq_path,
-                "-af", measured_filter,
+                "-af", f"volume={gain_db:.2f}dB",
                 "-ar", "44100",
                 "-ac", "1",
                 "-c:a", "pcm_s16le",
                 output_path,
             ]
-            log.info(f"FFmpeg pass 5 (loudnorm apply): {output_path}")
-            r3 = subprocess.run(cmd_norm, capture_output=True, text=True)
+            log.info(f"FFmpeg pass 5 (gross level): {output_path}")
+            r3 = subprocess.run(cmd_level, capture_output=True, text=True)
             if r3.returncode != 0:
-                raise RuntimeError(f"loudnorm apply pass failed:\n{r3.stderr[-2000:]}")
+                raise RuntimeError(f"Level pass failed:\n{r3.stderr[-2000:]}")
         finally:
             try:
                 os.unlink(eq_path)
@@ -558,7 +583,7 @@ def handle_export_book(job: dict):
         tmp_files.append(normalized_wav)
 
         measured_filter = (
-            f"loudnorm=I=-18:TP=-3.0:LRA=11"
+            f"loudnorm=I={BOOK_LOUDNORM_I}:TP={BOOK_LOUDNORM_TP}:LRA={BOOK_LOUDNORM_LRA}"
             f":measured_I={stats['input_i']}"
             f":measured_TP={stats['input_tp']}"
             f":measured_LRA={stats['input_lra']}"
