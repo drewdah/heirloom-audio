@@ -59,3 +59,7 @@ CLAUDE.md
 playwright-report/
 test-results/
 docs/screenshots/*.png
+
+# Python
+__pycache__/
+*.pyc
