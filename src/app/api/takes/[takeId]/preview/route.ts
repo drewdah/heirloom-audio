@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureLocalOriginal } from "@/lib/take-restore";
+import { getUserAudioSettings } from "@/lib/audio-settings";
 import { createClient } from "redis";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export async function POST(
 
   await prisma.take.update({ where: { id: takeId }, data: { previewStatus: "processing" } });
 
+  const settings = await getUserAudioSettings(session.user.id);
   const basename = take.audioFileUrl.split("/").pop()!;
   const job = {
     type: "preview_take",
@@ -44,6 +46,7 @@ export async function POST(
     filePath: `/app/public/takes/${basename}`,
     fileOffset: take.fileOffset,
     previewSeconds: PREVIEW_SECONDS,
+    settings,
     secret: process.env.NEXTAUTH_SECRET ?? "",
   };
 

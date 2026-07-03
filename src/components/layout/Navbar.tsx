@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PlusCircle, LogOut, User, SlidersHorizontal } from "lucide-react";
+import { PlusCircle, LogOut, User, SlidersHorizontal, Mic } from "lucide-react";
 import { signOut } from "next-auth/react";
 import AudioSettingsModal from "@/components/studio/AudioSettingsModal";
+import MicCheckModal from "@/components/studio/MicCheckModal";
 import DriveStatus from "@/components/layout/DriveStatus";
 
 interface NavbarProps {
@@ -19,6 +20,14 @@ interface NavbarProps {
 export default function Navbar({ user }: NavbarProps) {
   const pathname = usePathname();
   const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const [micCheckOpen, setMicCheckOpen] = useState(false);
+
+  // Auto-open Mic Check on first launch, until the user has calibrated once.
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem("heirloom-mic-calibrated")) {
+      setMicCheckOpen(true);
+    }
+  }, []);
 
   return (
     <>
@@ -105,6 +114,13 @@ export default function Navbar({ user }: NavbarProps) {
             </div>
             <DriveStatus />
             <button
+              onClick={() => setMicCheckOpen(true)}
+              className="p-2 rounded-lg transition-all"
+              style={{ color: "var(--text-tertiary)" }}
+              title="Mic Check">
+              <Mic className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setAudioSettingsOpen(true)}
               className="p-2 rounded-lg transition-all"
               style={{ color: "var(--text-tertiary)" }}
@@ -124,6 +140,7 @@ export default function Navbar({ user }: NavbarProps) {
       </div>
     </nav>
     <AudioSettingsModal open={audioSettingsOpen} onClose={() => setAudioSettingsOpen(false)} />
+    <MicCheckModal open={micCheckOpen} onClose={() => setMicCheckOpen(false)} />
     </>
   );
 }

@@ -118,6 +118,24 @@ SIMPLE_FILTER_NO_NORM = (
     # no makeup gain — avoids pushing peaks toward clip before loudnorm
 )
 
+# Voice-evenness (compression) presets chosen in Mic Check.
+COMPRESSION_PRESETS = {
+    "gentle":      "acompressor=threshold=-20dB:ratio=2:attack=10:release=150",
+    "recommended": "acompressor=threshold=-18dB:ratio=3:attack=5:release=100",
+    "strong":      "acompressor=threshold=-16dB:ratio=4:attack=5:release=80",
+}
+
+def eq_compress_filter(compression: str) -> str:
+    """EQ + compression stage, compressor chosen by the user's evenness preset."""
+    comp = COMPRESSION_PRESETS.get(compression, COMPRESSION_PRESETS["recommended"])
+    return (
+        "highpass=f=80,"
+        "lowpass=f=16000,"
+        "equalizer=f=300:t=h:w=200:g=-3,"
+        "equalizer=f=2500:t=h:w=1500:g=2,"
+        + comp
+    )
+
 # De-esser filter_complex graph — tames sibilance using a sidechain compressor
 # driven by a narrow boost on the 7.5 kHz band.
 DEESSER_FILTER_COMPLEX = (
@@ -147,48 +165,50 @@ def measure_loudnorm(input_path: str) -> dict:
     return json.loads(stderr[start:end])
 
 
-def process_take(input_path: str, output_path: str) -> None:
+def process_take(input_path: str, output_path: str, settings: dict | None = None) -> None:
     """Run the full FFmpeg filter chain on a single take file.
 
+    settings: {"compression": "gentle|recommended|strong", "denoise": bool}
     Pass order:
-      1. Noise reduction  — RNNoise (neural) + anlmdn (steady-state residual)
+      1. Noise reduction  — anlmdn (optional, per settings)
       2. De-esser         — sidechain compressor on 7.5 kHz band (filter_complex)
-      3. EQ + dynamics    — highpass, lowpass, EQ, acompressor
+      3. EQ + dynamics    — highpass, lowpass, EQ, acompressor (evenness per settings)
       4. loudnorm pass 1  — measure integrated loudness, true peak, LRA
       5. loudnorm pass 2  — apply linear gain correction using measured stats
     """
+    settings = settings or {}
+    compression = settings.get("compression", "recommended")
+    denoise = settings.get("denoise", True)
+
     with tempfile.NamedTemporaryFile(suffix="_denoised.wav", delete=False) as t1, \
          tempfile.NamedTemporaryFile(suffix="_deessed.wav",  delete=False) as t2:
         denoised_path = t1.name
         deessed_path  = t2.name
 
     try:
-        # Pass 1 — noise reduction
-        # arnndn: neural noise suppressor (needs a model; fall back to anlmdn only if unavailable)
-        # anlmdn: non-local means denoising for residual steady-state noise
-        noise_filter = "anlmdn=s=1:p=0.002:r=0.002:m=15"  # s=1 is light/natural for speech; s=7 caused heavy warbling
-        try:
-            cmd_nr = [
-                "ffmpeg", "-y",
-                "-i", input_path,
-                "-af", f"arnndn,{noise_filter}",
-                "-ar", "48000",
-                "-ac", "1",
-                "-c:a", "pcm_s16le",
-                denoised_path,
-            ]
-            log.info(f"FFmpeg pass 1 (noise reduction + anlmdn): {input_path}")
-            r0 = subprocess.run(cmd_nr, capture_output=True, text=True)
-            if r0.returncode != 0:
-                # arnndn may not be available in this FFmpeg build — fall back to anlmdn only
-                log.warning("arnndn unavailable, falling back to anlmdn only")
-                cmd_nr[cmd_nr.index(f"arnndn,{noise_filter}")] = noise_filter
+        # Pass 1 — noise reduction (anlmdn: light non-local-means denoise for speech)
+        noise_filter = "anlmdn=s=1:p=0.002:r=0.002:m=15"  # s=1 is light/natural; s=7 caused warbling
+        if denoise:
+            try:
+                cmd_nr = [
+                    "ffmpeg", "-y",
+                    "-i", input_path,
+                    "-af", noise_filter,
+                    "-ar", "48000",
+                    "-ac", "1",
+                    "-c:a", "pcm_s16le",
+                    denoised_path,
+                ]
+                log.info(f"FFmpeg pass 1 (noise reduction): {input_path}")
                 r0 = subprocess.run(cmd_nr, capture_output=True, text=True)
                 if r0.returncode != 0:
                     raise RuntimeError(f"Noise reduction failed:\n{r0.stderr[-2000:]}")
-        except Exception as e:
-            log.warning(f"Noise reduction skipped: {e}")
-            denoised_path = input_path  # skip this pass gracefully
+            except Exception as e:
+                log.warning(f"Noise reduction skipped: {e}")
+                denoised_path = input_path  # skip this pass gracefully
+        else:
+            log.info("Pass 1 (noise reduction) disabled by settings")
+            denoised_path = input_path
 
         # Pass 2 — de-esser (requires filter_complex for named pads)
         cmd_de = [
@@ -214,7 +234,7 @@ def process_take(input_path: str, output_path: str) -> None:
             cmd_eq = [
                 "ffmpeg", "-y",
                 "-i", deessed_path,
-                "-af", SIMPLE_FILTER_NO_NORM,
+                "-af", eq_compress_filter(compression),
                 "-ar", "48000",
                 "-ac", "1",
                 "-c:a", "pcm_s16le",
@@ -275,6 +295,7 @@ def handle_process_chapter(job: dict):
     chapter_id = job.get("chapterId")
     takes      = job.get("takes", [])   # [{takeId, filePath, regionStart, regionEnd, fileOffset, durationSeconds}]
     secret     = job.get("secret", "")
+    settings   = job.get("settings")    # {compression, denoise} — user's audio prefs
 
     if not chapter_id or not takes:
         log.warning("Invalid process_chapter job")
@@ -329,14 +350,14 @@ def handle_process_chapter(job: dict):
                         raise RuntimeError(f"Trim failed:\n{r2.stderr[-1000:]}")
 
                     # Step 2: apply filter chain to the trimmed excerpt
-                    process_take(tmp_path, output_path)
+                    process_take(tmp_path, output_path, settings)
                 finally:
                     try:
                         os.unlink(tmp_path)
                     except Exception:
                         pass
             else:
-                process_take(full_path, output_path)
+                process_take(full_path, output_path, settings)
 
             log.info(f"Processed take {take_id} → {output_path}")
             processed.append({"takeId": take_id, "processedFileUrl": output_url})
@@ -384,6 +405,7 @@ def handle_preview(job: dict):
     secret    = job.get("secret", "")
     file_offset     = float(job.get("fileOffset", 0))
     preview_seconds = float(job.get("previewSeconds", 12))
+    settings        = job.get("settings")
 
     if not take_id or not file_path:
         log.warning("Invalid preview_take job")
@@ -415,7 +437,7 @@ def handle_preview(job: dict):
         if r.returncode != 0:
             raise RuntimeError(f"Snippet extract failed:\n{r.stderr[-1000:]}")
 
-        process_take(raw_path, processed_path)
+        process_take(raw_path, processed_path, settings)
         log.info(f"Preview ready for take {take_id}")
         _notify_preview(take_id, "done", None, secret)
     except Exception as e:

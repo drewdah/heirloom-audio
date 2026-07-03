@@ -33,6 +33,10 @@ export default function AudioSettingsModal({ open, onClose }: AudioSettingsModal
     if (typeof window === "undefined") return GAIN_DEFAULT;
     return parseFloat(localStorage.getItem("heirloom-mic-gain") ?? String(GAIN_DEFAULT));
   });
+  const [agc, setAgc] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("heirloom-agc") !== "false";
+  });
 
   // Live mic test state
   const [testing, setTesting] = useState(false);
@@ -73,11 +77,17 @@ export default function AudioSettingsModal({ open, onClose }: AudioSettingsModal
     window.dispatchEvent(new CustomEvent("heirloom:mic-gain", { detail: val }));
   }
 
+  function handleAgcChange(val: boolean) {
+    setAgc(val);
+    localStorage.setItem("heirloom-agc", String(val));
+    window.dispatchEvent(new CustomEvent("heirloom:agc", { detail: val }));
+  }
+
   async function startTest() {
     setTestError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: agc, sampleRate: 48000 },
       });
       streamRef.current = stream;
       const ctx = new AudioContext({ sampleRate: 48000 });
@@ -222,8 +232,29 @@ export default function AudioSettingsModal({ open, onClose }: AudioSettingsModal
           {/* Body */}
           <div className="px-5 py-5 flex flex-col gap-6">
 
-            {/* ── Mic Gain ─────────────────────────────────────────────── */}
-            <div className="flex flex-col gap-3">
+            {/* ── Automatic input gain (AGC) ───────────────────────────── */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-medium" style={{ color: "var(--text-primary)", fontFamily: "var(--font-sans)" }}>
+                  Automatic input gain
+                </span>
+                <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-sans)", fontSize: "0.65rem" }}>
+                  Keeps recordings at a healthy level automatically. Turn off for manual gain.
+                </span>
+              </div>
+              <button
+                onClick={() => handleAgcChange(!agc)}
+                role="switch"
+                aria-checked={agc}
+                aria-label="Automatic input gain"
+                className="relative rounded-full transition-colors flex-shrink-0"
+                style={{ width: 40, height: 22, background: agc ? "var(--accent)" : "rgba(255,255,255,0.15)" }}>
+                <span className="absolute rounded-full bg-white transition-all" style={{ width: 16, height: 16, top: 3, left: agc ? 21 : 3 }} />
+              </button>
+            </div>
+
+            {/* ── Manual Mic Gain (used when AGC is off) ───────────────── */}
+            <div className="flex flex-col gap-3" style={{ opacity: agc ? 0.4 : 1, pointerEvents: agc ? "none" : "auto" }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Mic className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-tertiary)" }} />
