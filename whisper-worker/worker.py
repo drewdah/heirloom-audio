@@ -133,7 +133,7 @@ def measure_loudnorm(input_path: str) -> dict:
     cmd = [
         "ffmpeg", "-y",
         "-i", input_path,
-        "-af", "loudnorm=I=-20:TP=-1.5:LRA=11:print_format=json",
+        "-af", "loudnorm=I=-20:TP=-3.0:LRA=11:print_format=json",
         "-f", "null", "-",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -232,7 +232,7 @@ def process_take(input_path: str, output_path: str) -> None:
 
             # Pass 5 — loudnorm correction using measured values (linear mode = no distortion)
             measured_filter = (
-                f"loudnorm=I=-20:TP=-1.5:LRA=11"
+                f"loudnorm=I=-20:TP=-3.0:LRA=11"
                 f":measured_I={stats['input_i']}"
                 f":measured_TP={stats['input_tp']}"
                 f":measured_LRA={stats['input_lra']}"
@@ -473,7 +473,7 @@ def handle_export_book(job: dict):
         tmp_files.append(normalized_wav)
 
         measured_filter = (
-            f"loudnorm=I=-18:TP=-1.5:LRA=11"
+            f"loudnorm=I=-18:TP=-3.0:LRA=11"
             f":measured_I={stats['input_i']}"
             f":measured_TP={stats['input_tp']}"
             f":measured_LRA={stats['input_lra']}"
