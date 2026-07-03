@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { backupTakeInBackground } from "@/lib/take-backup";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFileAtomic } from "@/lib/atomic-file";
 import { join } from "path";
 
 export const dynamic = "force-dynamic";
@@ -89,14 +89,19 @@ export async function POST(
   const localPath = join(localDir, localFileName);
   const localUrl = `/takes/${localFileName}`;
 
+  // Persist the original durably BEFORE marking the take as having audio.
+  // If the write fails we must not keep a take that claims a file it doesn't
+  // have — delete the placeholder and surface the failure so the client can
+  // retry, rather than silently returning a broken take.
   try {
-    await mkdir(localDir, { recursive: true });
-    await writeFile(localPath, buffer);
+    await writeFileAtomic(localPath, buffer);
   } catch (err) {
     console.error("[takes] Local save failed:", err);
+    await prisma.take.delete({ where: { id: tempTake.id } }).catch(() => {});
+    return NextResponse.json({ error: "save_failed" }, { status: 500 });
   }
 
-  // Update DB with local URL immediately so UI can render waveform
+  // Update DB with local URL now that the file is safely on disk
   const take = await prisma.take.update({
     where: { id: tempTake.id },
     data: {
