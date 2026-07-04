@@ -47,6 +47,11 @@ export async function DELETE(
     ...chapter.takes.map((t) => t.audioDriveId),
   ].filter(Boolean) as string[];
 
+  // Remove the takes' local files (original/processed/preview) so deleting a
+  // chapter doesn't leave orphaned files under public/takes/ with no DB row.
+  const { unlinkTakeLocalFiles } = await import("@/lib/local-files");
+  await unlinkTakeLocalFiles(chapter.takes);
+
   // Delete from DB first — Drive cleanup is fire-and-forget, non-fatal
   await prisma.chapter.delete({ where: { id: chapterId } });
 

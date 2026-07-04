@@ -8,6 +8,7 @@ const drive = vi.hoisted(() => ({ upload: vi.fn() }));
 vi.mock("@/lib/google-drive", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   uploadAudioToDrive: (...args: any[]) => drive.upload(...args),
+  isDriveEnabled: () => true,
 }));
 
 const mockSession = vi.hoisted(() => ({ value: null as any }));

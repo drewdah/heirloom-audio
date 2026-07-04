@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteDriveFile } from "@/lib/google-drive";
-import { unlink } from "fs/promises";
-import { join } from "path";
+import { unlinkTakeLocalFiles } from "@/lib/local-files";
 
 export const dynamic = "force-dynamic";
 
@@ -60,11 +59,8 @@ export async function DELETE(
     deleteDriveFile(session.user.id, take.audioDriveId).catch(() => {});
   }
 
-  // Delete local file if it exists
-  if (take.audioFileUrl?.startsWith("/takes/")) {
-    const localPath = join(process.cwd(), "public", take.audioFileUrl);
-    unlink(localPath).catch(() => {});
-  }
+  // Remove the take's local files — original, processed WAV, and preview snippets
+  await unlinkTakeLocalFiles(take);
 
   await prisma.take.delete({ where: { id: takeId } });
 

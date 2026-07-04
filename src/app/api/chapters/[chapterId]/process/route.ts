@@ -35,6 +35,11 @@ export async function POST(
   if (!chapter || chapter.book.userId !== session.user.id)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Concurrency guard: refuse to enqueue while a run is already in flight, so
+  // two overlapping worker runs can't race on the same _processed.wav files.
+  if (chapter.processStatus === "processing")
+    return NextResponse.json({ error: "Processing already in progress" }, { status: 409 });
+
   if (chapter.takes.length === 0)
     return NextResponse.json({ error: "No active takes to process" }, { status: 400 });
 

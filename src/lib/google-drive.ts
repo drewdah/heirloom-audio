@@ -2,8 +2,19 @@ import { google } from "googleapis";
 import { Readable } from "stream";
 import { prisma } from "./prisma";
 
+/**
+ * Whether Google Drive I/O is enabled. Set SKIP_DRIVE=true (e.g. in CI / local
+ * dev without Google credentials) to genuinely disable all Drive reads/writes —
+ * every Drive call funnels through getDriveClient, so gating here disables the lot.
+ */
+export function isDriveEnabled(): boolean {
+  return process.env.SKIP_DRIVE !== "true";
+}
+
 /** Get an authenticated Drive client, proactively refreshing the token if needed */
 export async function getDriveClient(userId: string) {
+  if (!isDriveEnabled()) throw new Error("Google Drive is disabled (SKIP_DRIVE=true)");
+
   const account = await prisma.account.findFirst({
     where: { userId, provider: "google" },
   });

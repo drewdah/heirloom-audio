@@ -116,6 +116,16 @@ export async function DELETE(
     }
   } catch {}
 
+  // Remove every take's local files (original/processed/preview) up front so a
+  // book delete doesn't orphan files under public/takes/ (the DB cascade below
+  // drops the rows, but never touches disk).
+  const takes = await prisma.take.findMany({
+    where: { chapter: { bookId } },
+    select: { audioFileUrl: true, processedFileUrl: true },
+  });
+  const { unlinkTakeLocalFiles } = await import("@/lib/local-files");
+  await unlinkTakeLocalFiles(takes);
+
   // Cascade delete handles chapters and exports via Prisma schema
   await prisma.book.delete({ where: { id: bookId } });
   return NextResponse.json({ ok: true });
