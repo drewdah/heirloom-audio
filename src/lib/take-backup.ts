@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { uploadAudioToDrive } from "@/lib/google-drive";
+import { uploadAudioToDrive, isDriveEnabled } from "@/lib/google-drive";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
@@ -32,6 +32,10 @@ const errMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * it fire-and-forget without unhandled rejections.
  */
 export async function backupTake(takeId: string, opts: BackupOptions = {}): Promise<void> {
+  // Drive disabled (SKIP_DRIVE) — skip cleanly without churning status or
+  // burning retry attempts against a Drive we know we can't reach.
+  if (!isDriveEnabled()) return;
+
   const maxAttempts = opts.maxAttempts ?? 3;
   const delayMs = opts.delayMs ?? 1000;
 

@@ -102,6 +102,16 @@ describe("POST /api/chapters/[chapterId]/process", () => {
     const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
     expect((await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) })).status).toBe(404);
   });
+
+  it("refuses to enqueue while a run is already in flight (409)", async () => {
+    const ch = await createTestChapter(bookId, { processStatus: "processing" });
+    await createTestTake(ch.id, { audioFileUrl: "/takes/inflight.webm", regionStart: 0, regionEnd: 10, durationSeconds: 10 });
+    await writeLocal("/takes/inflight.webm");
+    const { POST } = await import("@/app/api/chapters/[chapterId]/process/route");
+    const res = await POST(new Request("http://localhost", { method: "POST" }) as any, { params: Promise.resolve({ chapterId: ch.id }) });
+    expect(res.status).toBe(409);
+    expect(redisPushed.jobs).toHaveLength(0); // nothing enqueued
+  });
 });
 
 describe("GET /api/chapters/[chapterId]/process", () => {
