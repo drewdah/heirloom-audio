@@ -4,6 +4,10 @@ import { useEffect, useRef } from "react";
 interface VUMeterProps {
   stream: MediaStream | null;
   isRecording: boolean;
+  /** Per-frame level callback (rms + peak, 0..1) — used for voice detection / auto-stop. */
+  onLevel?: (rms: number, peak: number) => void;
+  /** Canvas height in px (default 20). Larger reads as a more prominent meter. */
+  height?: number;
 }
 
 const BAR_COUNT = 24;
@@ -63,9 +67,13 @@ function drawMeter(
   }
 }
 
-export default function VUMeter({ stream, isRecording }: VUMeterProps) {
+export default function VUMeter({ stream, isRecording, onLevel, height = 20 }: VUMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number | null>(null);
+  // Keep the latest onLevel in a ref so the rAF loop always calls the current one
+  // (the loop is set up once per stream, but callers pass fresh closures each render).
+  const onLevelRef = useRef(onLevel);
+  useEffect(() => { onLevelRef.current = onLevel; }, [onLevel]);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const peakRef = useRef<number>(0);
@@ -118,6 +126,8 @@ export default function VUMeter({ stream, isRecording }: VUMeterProps) {
       let peak = 0;
       for (let i = 0; i < dataArray.length; i++) peak = Math.max(peak, Math.abs(dataArray[i]));
 
+      onLevelRef.current?.(rms, peak);
+
       // Clip detection
       if (peak >= 0.99) {
         clipRef.current = true;
@@ -155,9 +165,9 @@ export default function VUMeter({ stream, isRecording }: VUMeterProps) {
       <canvas
         ref={canvasRef}
         width={320}
-        height={20}
+        height={height}
         className="w-full rounded"
-        style={{ height: "20px" }}
+        style={{ height: `${height}px` }}
       />
       <div className="flex justify-end">
         <span
