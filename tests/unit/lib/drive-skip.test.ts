@@ -1,5 +1,17 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { isDriveEnabled, getDriveClient } from "@/lib/google-drive";
+import { isDriveEnabled, getDriveClient, sizeMatches } from "@/lib/google-drive";
+
+describe("sizeMatches (post-upload Drive verification)", () => {
+  it("matches numeric and string byte counts", () => {
+    expect(sizeMatches(1024, 1024)).toBe(true);
+    expect(sizeMatches(1024, "1024")).toBe(true); // Drive reports size as a string
+  });
+  it("rejects mismatches and missing sizes", () => {
+    expect(sizeMatches(1024, 1023)).toBe(false); // truncated upload
+    expect(sizeMatches(1024, null)).toBe(false);
+    expect(sizeMatches(1024, undefined)).toBe(false);
+  });
+});
 
 // SKIP_DRIVE genuinely disables all Drive I/O (every call funnels through
 // getDriveClient). Guard against it silently reverting to a no-op flag.

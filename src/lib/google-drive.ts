@@ -179,18 +179,37 @@ export async function uploadAudioToDrive(
   const res = await drive.files.create({
     requestBody: { name: fileName, parents: [chaptersFolderId] },
     media: { mimeType, body: Readable.from(buffer) },
-    fields: "id,webViewLink",
+    fields: "id,webViewLink,size",
   });
+  const fileId = res.data.id!;
+
+  // Verify the Drive copy is complete before it's trusted as the backup of
+  // record: its reported size must match the source bytes. On mismatch, remove
+  // the partial/corrupt file and throw so the caller retries rather than
+  // marking a bad upload as backed up.
+  const reportedSize = res.data.size ?? (await drive.files.get({ fileId, fields: "size" })).data.size;
+  if (!sizeMatches(buffer.length, reportedSize)) {
+    await drive.files.delete({ fileId }).catch(() => {});
+    throw new Error(
+      `Drive upload size mismatch for ${fileName}: expected ${buffer.length} bytes, Drive reported ${reportedSize ?? "none"}`
+    );
+  }
 
   await drive.permissions.create({
-    fileId: res.data.id!,
+    fileId,
     requestBody: { role: "reader", type: "anyone" },
   });
 
   return {
-    fileId: res.data.id!,
+    fileId,
     webViewLink: res.data.webViewLink ?? "",
   };
+}
+
+/** True if a Drive-reported size (string | number | null) matches the expected byte count. */
+export function sizeMatches(expected: number, reported: string | number | null | undefined): boolean {
+  if (reported == null) return false;
+  return Number(reported) === expected;
 }
 
 /** Upload cover image to Drive book folder */
